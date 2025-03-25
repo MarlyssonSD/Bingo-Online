@@ -29,6 +29,7 @@ Este é um projeto em **Python** que implementa uma versão **online** do jogo *
 ## Ideias Extras
 - **Chat**: Os jogadores podem conversar entre si enquanto jogam 🗣️.
 - **Múltiplas Cartelas**: A possibilidade de um jogador ter **mais de uma cartela** para aumentar as chances de ganhar 🎲.
+- **Modo Blackout**: Para o(a) jogador(a) vencer, será necessário preencher a tabela **inteira**. 🐱‍👤.
 
 ## Como Jogar
 1. Conecte-se ao servidor 🖥️.
