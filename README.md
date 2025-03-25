@@ -8,6 +8,18 @@ Este é um projeto em **Python** que implementa uma versão **online** do jogo *
 - O jogo será implementado utilizando **Sockets** em **Python** 🔌.
 - O jogo será **online**: os jogadores se conectam ao servidor e interagem em tempo real 🌐.
 
+## Bibliotecas Necessárias
+
+### Para rodar o projeto, certifique-se de ter o Python instalado em seu sistema. As bibliotecas utilizadas no projeto são:
+
+- socket (Padrão do Python) - Utilizada para comunicação entre cliente e servidor.
+
+- threading (Padrão do Python) - Permite execução concorrente de múltiplas threads.
+
+- random (Padrão do Python) - Geração de números aleatórios.
+
+- time (Padrão do Python) - Utilizada para pausas e temporização no jogo.
+
 ## Integrantes
 - Camila Fontes 👩‍💻
 - Laila Valença 👩‍💻
