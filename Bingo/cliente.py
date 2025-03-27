@@ -2,6 +2,7 @@ import socket
 import threading
 import numpy as np
 import random
+import sys
 
 class CarteldeBingo:
     def __init__(self):
