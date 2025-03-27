@@ -160,7 +160,7 @@ class ClienteBingo:
                 break
             elif opcao == '3':
                 self.fechar_conexao()
-                exit()
+                sys.exit()
             else:
                 print("Opção inválida!")
     
