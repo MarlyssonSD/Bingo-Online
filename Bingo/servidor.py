@@ -127,31 +127,48 @@ class ServidorBingo:
         Remove um cliente de todas as listas e fecha sua conexão
         """
         with self.lock:
-            if cliente_socket in self.clientes:
-                self.clientes.remove(cliente_socket)
-            if cliente_socket in self.clientes_prontos:
-                self.clientes_prontos.remove(cliente_socket)
             try:
-                cliente_socket.close()
-            except:
-                pass
-            print(f"Cliente removido. Jogadores restantes: {len(self.clientes_prontos)}")
+                if cliente_socket in self.clientes:
+                    self.clientes.remove(cliente_socket)
+                if cliente_socket in self.clientes_prontos:
+                    self.clientes_prontos.remove(cliente_socket)
+                
+                try:
+                    cliente_socket.shutdown(socket.SHUT_RDWR)  # Adiciona shutdown antes do close
+                    cliente_socket.close()
+                except:
+                    pass
+                
+                print(f"Cliente removido. Jogadores restantes: {len(self.clientes_prontos)}")
+                
+                # Se não houver jogadores suficientes durante o jogo, finaliza
+                if self.jogo_em_andamento and len(self.clientes_prontos) < self.min_clientes:
+                    print("\nNão há jogadores suficientes para continuar. Encerrando jogo...")
+                    self.finalizar_jogo('JOGO_CANCELADO')
+            except Exception as e:
+                print(f"Erro ao remover cliente: {e}")
 
     def enviar_numero(self, numero):
         """
         Envia um número para todos os clientes conectados de forma segura
         """
-        clientes_remover = []
-        for cliente in self.clientes:
-            try:
-                cliente.send(str(numero).encode('utf-8'))
-            except:
-                clientes_remover.append(cliente)
-        
-        # Remove clientes desconectados
-        for cliente in clientes_remover:
-            self.remover_cliente(cliente)
-    
+        with self.lock:  # Adiciona lock para evitar problemas de concorrência
+            clientes_remover = []
+            for cliente in self.clientes[:]:  # Cria uma cópia da lista para iterar
+                try:
+                    cliente.send(str(numero).encode('utf-8'))
+                except (socket.error, ConnectionError):  # Especifica melhor os erros
+                    clientes_remover.append(cliente)
+            
+            # Remove clientes desconectados
+            for cliente in clientes_remover:
+                self.remover_cliente(cliente)
+            
+            # Se não houver mais clientes, finaliza o jogo
+            if not self.clientes:
+                print("\nTodos os clientes desconectados. Encerrando jogo.")
+                self.finalizar_jogo('TODOS_DESCONECTADOS')
+
     def finalizar_jogo(self, mensagem='FIM_JOGO'):
         """
         Finaliza o jogo e notifica todos os clientes
@@ -159,25 +176,27 @@ class ServidorBingo:
         self.jogo_em_andamento = False
         self.sorteio_iniciado = False
         
-        # Notifica todos os clientes
-        for cliente in self.clientes:
+        # Primeiro: Envia a mensagem para todos os clientes
+        for cliente in self.clientes[:]:  # Usa uma cópia da lista
             try:
                 cliente.send(mensagem.encode('utf-8'))
+                time.sleep(0.1)  # Pequena pausa para garantir que a mensagem seja enviada
             except:
                 pass
         
-        # Fecha todas as conexões
-        for cliente in self.clientes:
+        # Segundo: Fecha as conexões
+        for cliente in self.clientes[:]:  # Usa uma cópia da lista
             try:
+                cliente.shutdown(socket.SHUT_RDWR)
                 cliente.close()
             except:
                 pass
         
-        # Limpa as listas de clientes
+        # Terceiro: Limpa as listas de clientes
         self.clientes.clear()
         self.clientes_prontos.clear()
         
-        # Se o jogo foi cancelado ou todos desconectaram, fecha o servidor
+        # Por último: Decide se encerra o servidor ou aguarda novas conexões
         if mensagem in ['JOGO_CANCELADO', 'TODOS_DESCONECTADOS']:
             self.aceitando_conexoes = False
             try:

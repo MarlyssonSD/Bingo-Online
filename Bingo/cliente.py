@@ -233,8 +233,8 @@ class ClienteBingo:
                     break
                 
                 if dados == 'BINGO_VENCEDOR':
-                    print("\n--- Alguém fez BINGO! Jogo encerrado! ---")
                     print("Números sorteados:", self.numeros_sorteados)
+                    print("\n--- Alguém fez BINGO! Jogo encerrado! ---")
                     break
                 
                 if dados == 'JOGO_CANCELADO':
