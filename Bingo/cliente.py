@@ -261,7 +261,7 @@ class ClienteBingo:
                 print(f"\n--- Número Sorteado: {numero} ---")
                 print("Números sorteados até agora:", self.numeros_sorteados)
                 
-                # MARCA O NÚMERO EM TODAS AS CARTELAS (ADICIONE ESTA LINHA)
+                # MARCA O NÚMERO EM TODAS AS CARTELAS 
                 self.marcar_numero_em_todas_cartelas(numero)
                 
                 # Verifica se há bingo
