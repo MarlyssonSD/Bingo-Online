@@ -5,6 +5,7 @@ import random
 import time
 import sys
 
+
 class CarteldeBingo:
     def __init__(self):
         # Definindo os intervalos para cada coluna
@@ -60,19 +61,14 @@ class CarteldeBingo:
         
         :return: True se há bingo, False caso contrário
         """
-        # Verificar linhas
-        if np.any(np.all(self.cartela_marcacao, axis=1)):
-            return True
+        # Cria uma cópia para não modificar a original
+        verificacao = self.cartela_marcacao.copy()
         
-        # Verificar colunas
-        if np.any(np.all(self.cartela_marcacao, axis=0)):
-            return True
+        # Ignora o centro (já que ele começa marcado)
+        verificacao[2, 2] = True
         
-        # Verificar diagonais
-        diagonal_principal = np.all(np.diag(self.cartela_marcacao))
-        diagonal_secundaria = np.all(np.diag(np.fliplr(self.cartela_marcacao)))
-        
-        return diagonal_principal or diagonal_secundaria
+        # Retorna True apenas se TODAS as posições forem True
+        return np.all(verificacao)
     
     def imprimir_cartela(self):
         """
@@ -118,7 +114,7 @@ class ClienteBingo:
         else:
             print("\n--- Você já tem o número máximo de cartelas (3)! ---")
             return False
-    
+        
     def marcar_numero_em_todas_cartelas(self, numero):
         """
         Marca um número em todas as cartelas do jogador
@@ -138,10 +134,10 @@ class ClienteBingo:
         
         :return: True se há bingo em pelo menos uma cartela, False caso contrário
         """
-        for cartela in self.cartelas:
+        for i, cartela in enumerate(self.cartelas, 1):
             if cartela.verificar_bingo():
-                return True
-        return False
+                return i
+        return None
     
     def imprimir_todas_cartelas(self):
         """
@@ -183,11 +179,17 @@ class ClienteBingo:
                 self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.cliente.connect((self.host, self.porta))
                 
+                # Solicita o nome do jogador
+                self.nome_jogador = input("Digite seu nome: ")
+
                 # Recebe confirmação de conexão
                 resposta = self.cliente.recv(1024).decode('utf-8')
                 if resposta == 'CONECTADO':
                     print("Conectado ao servidor!")
                     
+                    # Envia o nome do jogador para o servidor
+                    self.cliente.send(self.nome_jogador.encode('utf-8'))
+
                     # Mostra as cartelas iniciais
                     self.imprimir_todas_cartelas()
                     
@@ -227,18 +229,23 @@ class ClienteBingo:
                     print("Conexão perdida com o servidor")
                     break
                 
+                if dados.startswith('BINGO_VENCEDOR:'):
+                    vencedor = dados.split(':')[1]
+                    print("\n--- RESULTADO FINAL ---")
+                    print("Números sorteados:", self.numeros_sorteados)
+                    print(f"\n--- {vencedor} fez BINGO! Jogo encerrado! ---")
+                    break
+                
+                if dados.startswith('JOGO_CANCELADO:'):
+                    motivo = dados.split(':', 1)[1]
+                    print("\n--- JOGO CANCELADO ---")
+                    print("Motivo:", motivo)
+                    print("Números sorteados:", self.numeros_sorteados)
+                    break
+                
                 if dados == 'FIM_JOGO':
                     print("\n--- Jogo Encerrado ---")
                     print("Números sorteados:", self.numeros_sorteados)
-                    break
-                
-                if dados == 'BINGO_VENCEDOR':
-                    print("Números sorteados:", self.numeros_sorteados)
-                    print("\n--- Alguém fez BINGO! Jogo encerrado! ---")
-                    break
-                
-                if dados == 'JOGO_CANCELADO':
-                    print("\n--- Jogo Cancelado - Não há jogadores suficientes ---")
                     break
                 
                 try:
@@ -254,20 +261,19 @@ class ClienteBingo:
                 print(f"\n--- Número Sorteado: {numero} ---")
                 print("Números sorteados até agora:", self.numeros_sorteados)
                 
-                # Tenta marcar o número em todas as cartelas
-                if self.marcar_numero_em_todas_cartelas(numero):
-                    print(f"Número {numero} marcado em uma ou mais cartelas!")
-                    
-
-                    # Verifica se tem Bingo em alguma cartela
-                    if self.verificar_bingo_em_todas_cartelas() and not self.bingo_feito:
-                        print("\n--- BINGO! Você ganhou! ---")
-                        self.bingo_feito = True
-                        try:
-                            self.cliente.send('BINGO'.encode('utf-8'))
-                        except:
-                            print("Não foi possível enviar mensagem de BINGO")
-                        break
+                # MARCA O NÚMERO EM TODAS AS CARTELAS (ADICIONE ESTA LINHA)
+                self.marcar_numero_em_todas_cartelas(numero)
+                
+                # Verifica se há bingo
+                cartela_vencedora = self.verificar_bingo_em_todas_cartelas()
+                if cartela_vencedora is not None and not self.bingo_feito:
+                    print(f"\n--- BINGO! Você ganhou na Cartela {cartela_vencedora}! ---")
+                    self.bingo_feito = True
+                    try:
+                        self.cliente.send('BINGO'.encode('utf-8'))
+                    except:
+                        print("Não foi possível enviar mensagem de BINGO")
+                    break
                 
                 # Mostra todas as cartelas atualizadas
                 self.imprimir_todas_cartelas()
