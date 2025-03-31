@@ -21,6 +21,7 @@ class ServidorBingo:
         # Lista de clientes conectados
         self.clientes = []
         self.clientes_prontos = []
+        self.nomes_jogadores = {} 
         
         # Números já sorteados
         self.numeros_sorteados = []
@@ -50,6 +51,8 @@ class ServidorBingo:
             # Envia confirmação de conexão
             cliente_socket.send('CONECTADO'.encode('utf-8'))
             
+            nome_jogador = cliente_socket.recv(1024).decode('utf-8')
+
             # Aguarda confirmação do cliente
             cliente_socket.recv(1024)
             
@@ -59,7 +62,8 @@ class ServidorBingo:
                     self.clientes.append(cliente_socket)
                 if cliente_socket not in self.clientes_prontos:
                     self.clientes_prontos.append(cliente_socket)
-                print(f"\nJogador conectado: {endereco}. Total: {len(self.clientes_prontos)}/{self.max_clientes}")
+                    self.nomes_jogadores[cliente_socket] = nome_jogador
+                    print(f"\nJogador '{nome_jogador}' conectado: {endereco}. Total: {len(self.clientes_prontos)}/{self.max_clientes}")                
                 
                 # Inicia o jogo se atingiu o número máximo de jogadores
                 if len(self.clientes_prontos) >= self.max_clientes and not self.sorteio_iniciado:
@@ -67,6 +71,7 @@ class ServidorBingo:
                     self.jogo_em_andamento = True
                     self.sorteio_iniciado = True
                     threading.Thread(target=self.iniciar_sorteio).start()
+                
                 # Se atingiu 2 jogadores, inicia o tempo de espera
                 elif len(self.clientes_prontos) == 2 and not self.sorteio_iniciado:
                     print("\nDois jogadores conectados. Aguardando mais jogadores por 30 segundos...")
@@ -84,8 +89,9 @@ class ServidorBingo:
                         self.remover_cliente(cliente_socket)
                         break
                     if mensagem == 'BINGO':
-                        print(f"\n--- BINGO! Cliente {endereco} venceu! ---")
-                        self.finalizar_jogo('BINGO_VENCEDOR')
+                        vencedor = self.nomes_jogadores.get(cliente_socket, "Jogador desconhecido")
+                        print(f"\n--- BINGO! {vencedor} venceu! ---")
+                        self.finalizar_jogo('BINGO_VENCEDOR', vencedor)
                         break
                 except:
                     self.remover_cliente(cliente_socket)
@@ -169,34 +175,41 @@ class ServidorBingo:
                 print("\nTodos os clientes desconectados. Encerrando jogo.")
                 self.finalizar_jogo('TODOS_DESCONECTADOS')
 
-    def finalizar_jogo(self, mensagem='FIM_JOGO'):
+    def finalizar_jogo(self, mensagem='FIM_JOGO', vencedor=None):
         """
         Finaliza o jogo e notifica todos os clientes
         """
         self.jogo_em_andamento = False
         self.sorteio_iniciado = False
         
-        # Primeiro: Envia a mensagem para todos os clientes
+        # Formata a mensagem final com informações relevantes
+        if mensagem == 'BINGO_VENCEDOR' and vencedor:
+            mensagem_final = f'BINGO_VENCEDOR:{vencedor}'
+        elif mensagem == 'JOGO_CANCELADO':
+            mensagem_final = 'JOGO_CANCELADO:Não há jogadores suficientes'
+        else:
+            mensagem_final = mensagem
+        
+        # Envia a mensagem para todos os clientes
         for cliente in self.clientes[:]:  # Usa uma cópia da lista
             try:
-                cliente.send(mensagem.encode('utf-8'))
-                time.sleep(0.1)  # Pequena pausa para garantir que a mensagem seja enviada
+                cliente.send(mensagem_final.encode('utf-8'))
+                time.sleep(0.1)  # Pequena pausa para evitar congestionamento
             except:
                 pass
         
-        # Segundo: Fecha as conexões
-        for cliente in self.clientes[:]:  # Usa uma cópia da lista
+        # Fecha as conexões e limpa as listas
+        for cliente in self.clientes[:]:
             try:
                 cliente.shutdown(socket.SHUT_RDWR)
                 cliente.close()
             except:
                 pass
         
-        # Terceiro: Limpa as listas de clientes
         self.clientes.clear()
         self.clientes_prontos.clear()
+        self.nomes_jogadores.clear()
         
-        # Por último: Decide se encerra o servidor ou aguarda novas conexões
         if mensagem in ['JOGO_CANCELADO', 'TODOS_DESCONECTADOS']:
             self.aceitando_conexoes = False
             try:

@@ -56,19 +56,15 @@ class CarteldeBingo:
         
         :return: True se há bingo, False caso contrário
         """
-        # Verificar linhas
-        if np.any(np.all(self.cartela_marcacao, axis=1)):
-            return True
+         # Cria uma cópia para não modificar a original
+        verificacao = self.cartela_marcacao.copy()  
         
-        # Verificar colunas
-        if np.any(np.all(self.cartela_marcacao, axis=0)):
-            return True
+        # Ignora o centro (já que ele começa marcado)
+        verificacao[2, 2] = True  
         
-        # Verificar diagonais
-        diagonal_principal = np.all(np.diag(self.cartela_marcacao))
-        diagonal_secundaria = np.all(np.diag(np.fliplr(self.cartela_marcacao)))
+        # Retorna True apenas se TODAS as posições forem True
+        return np.all(verificacao)
         
-        return diagonal_principal or diagonal_secundaria
     
     def imprimir_cartela(self):
         """
