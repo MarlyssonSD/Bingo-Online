@@ -100,6 +100,9 @@ class ClienteBingo:
         
         # Flag para controle de bingo
         self.bingo_feito = False
+        
+        # Código da partida
+        self.codigo_partida = None
     
     def adicionar_cartela(self):
         """
@@ -169,40 +172,46 @@ class ClienteBingo:
             else:
                 print("Opção inválida!")
     
-    def conectar(self):
-        """
-        Conecta ao servidor de Bingo com tentativas de reconexão
-        """
+    def conectar(self, codigo_partida=None):
         tentativas = 0
         while tentativas < self.max_tentativas:
             try:
                 self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.cliente.connect((self.host, self.porta))
                 
-                # Solicita o nome do jogador
-                self.nome_jogador = input("Digite seu nome: ")
-
-                # Recebe confirmação de conexão
                 resposta = self.cliente.recv(1024).decode('utf-8')
                 if resposta == 'CONECTADO':
                     print("Conectado ao servidor!")
                     
-                    # Envia o nome do jogador para o servidor
+                    self.nome_jogador = input("Digite seu nome: ")
                     self.cliente.send(self.nome_jogador.encode('utf-8'))
-
-                    # Mostra as cartelas iniciais
-                    self.imprimir_todas_cartelas()
                     
-                    # Menu interativo para comprar cartelas
+                    if codigo_partida is None:
+                        print("\nVocê pode entrar em uma partida existente ou criar uma nova.")
+                        codigo_partida = input("Digite o código da partida (deixe em branco para criar automaticamente): ")
+                    
+                    if codigo_partida.strip() == "":
+                        codigo_partida = "NOVOPARTIDA"
+                    
+                    # Envia o código da partida para o servidor
+                    self.cliente.send(codigo_partida.encode('utf-8'))
+                    
+                    # Aqui, em vez de esperar uma resposta que não vem, definimos o código enviado
+                    self.codigo_partida = codigo_partida
+                    print(f"Você está na partida com código: {self.codigo_partida}")
+                    
+                    self.imprimir_todas_cartelas()
                     self.menu_interativo()
                     
-                    # Confirma prontidão
                     self.cliente.send('PRONTO'.encode('utf-8'))
                     
-                    # Inicia thread para receber números
                     self.rodando = True
                     threading.Thread(target=self.receber_numeros).start()
                     return True
+                else:
+                    print(f"Resposta inesperada do servidor: {resposta}")
+                    self.fechar_conexao()
+                    tentativas += 1
                 
             except Exception as e:
                 print(f"Tentativa {tentativas + 1} falhou: {e}")
@@ -214,6 +223,7 @@ class ClienteBingo:
         
         print("Não foi possível conectar ao servidor após várias tentativas.")
         return False
+
 
     def receber_numeros(self):
         """
@@ -234,6 +244,7 @@ class ClienteBingo:
                     print("\n--- RESULTADO FINAL ---")
                     print("Números sorteados:", self.numeros_sorteados)
                     print(f"\n--- {vencedor} fez BINGO! Jogo encerrado! ---")
+                    self.rodando = False
                     break
                 
                 if dados.startswith('JOGO_CANCELADO:'):
@@ -241,49 +252,50 @@ class ClienteBingo:
                     print("\n--- JOGO CANCELADO ---")
                     print("Motivo:", motivo)
                     print("Números sorteados:", self.numeros_sorteados)
+                    self.rodando = False
                     break
                 
-                if dados == 'FIM_JOGO':
+                if dados == 'FIM_JOGO' or dados == 'SERVIDOR_ENCERRADO':
                     print("\n--- Jogo Encerrado ---")
                     print("Números sorteados:", self.numeros_sorteados)
+                    self.rodando = False
                     break
                 
                 try:
+                    # Tenta interpretar como um número
                     numero = int(dados)
+                    self.numeros_sorteados.append(numero)
+                    
+                    print(f"\n--- Número sorteado: {numero} ---")
+                    print(f"Números já sorteados: {self.numeros_sorteados}")
+                    
+                    # Marca nas cartelas
+                    if self.marcar_numero_em_todas_cartelas(numero):
+                        print("Número marcado em pelo menos uma cartela!")
+                        
+                        # Imprime cartelas atualizadas
+                        self.imprimir_todas_cartelas()
+                        
+                        # Verifica bingo
+                        cartela_vencedora = self.verificar_bingo_em_todas_cartelas()
+                        if cartela_vencedora is not None and not self.bingo_feito:
+                            print(f"\n--- BINGO! Você venceu com a cartela {cartela_vencedora}! ---")
+                            self.bingo_feito = True
+                            # Envia notificação ao servidor
+                            try:
+                                self.cliente.send('BINGO'.encode('utf-8'))
+                            except:
+                                print("Erro ao enviar notificação de bingo")
+
                 except ValueError:
-                    print(f"Mensagem inválida recebida: {dados}")
-                    continue
-                
-                # Adiciona o número à lista local de sorteados
-                self.numeros_sorteados.append(numero)
-                
-                # Imprime o número sorteado
-                print(f"\n--- Número Sorteado: {numero} ---")
-                print("Números sorteados até agora:", self.numeros_sorteados)
-                
-                # MARCA O NÚMERO EM TODAS AS CARTELAS 
-                self.marcar_numero_em_todas_cartelas(numero)
-                
-                # Verifica se há bingo
-                cartela_vencedora = self.verificar_bingo_em_todas_cartelas()
-                if cartela_vencedora is not None and not self.bingo_feito:
-                    print(f"\n--- BINGO! Você ganhou na Cartela {cartela_vencedora}! ---")
-                    self.bingo_feito = True
-                    try:
-                        self.cliente.send('BINGO'.encode('utf-8'))
-                    except:
-                        print("Não foi possível enviar mensagem de BINGO")
-                    break
-                
-                # Mostra todas as cartelas atualizadas
-                self.imprimir_todas_cartelas()
-            
+                    print(f"Mensagem não reconhecida: {dados}")
+                    
             except Exception as e:
-                print(f"Erro ao receber números: {e}")
+                print(f"Erro ao receber dados: {e}")
+                self.rodando = False
                 break
         
-        self.rodando = False
-        self.fechar_conexao()
+        print("\nDesconectado do servidor.")
     
     def fechar_conexao(self):
         """
@@ -292,26 +304,32 @@ class ClienteBingo:
         self.rodando = False
         if self.cliente:
             try:
+                self.cliente.shutdown(socket.SHUT_RDWR)
                 self.cliente.close()
             except:
                 pass
             self.cliente = None
 
 def main():
-    # Verifica se o IP do servidor foi fornecido como argumento
+    # Verifica se o IP e porta foram fornecidos como argumentos
     host = sys.argv[1] if len(sys.argv) > 1 else 'localhost'
     porta = int(sys.argv[2]) if len(sys.argv) > 2 else 12345
     
+    print(f"Conectando ao servidor {host}:{porta}...")
+    
     cliente = ClienteBingo(host=host, porta=porta)
-    try:
-        if cliente.conectar():
-            # Aguarda o usuário pressionar Ctrl+C para sair
-            while True:
-                time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nEncerrando o cliente...")
-    finally:
-        cliente.fechar_conexao()
+    
+    # Tenta conectar e participar da partida
+    if cliente.conectar():
+        print("Esperando o início da partida...")
+        
+        # Aguarda o término da partida
+        while cliente.rodando:
+            time.sleep(1)
+    
+    # Garante que a conexão seja fechada ao sair
+    cliente.fechar_conexao()
+    print("Jogo finalizado. Até a próxima!")
 
 if __name__ == "__main__":
     main()
