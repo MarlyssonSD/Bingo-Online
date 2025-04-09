@@ -2,9 +2,8 @@ import socket
 import threading
 import time
 import random
-
 class PartidaBingo:
-    def __init__(self, codigo_partida, min_clientes=2, max_clientes=10, tempo_espera=30):
+    def __init__(self, codigo_partida, min_clientes=2, max_clientes=10, tempo_espera=6): #Alterar para testes rápidos
         # Identificador da partida
         self.codigo_partida = codigo_partida
         
@@ -20,6 +19,11 @@ class PartidaBingo:
         
         # Números já sorteados
         self.numeros_sorteados = []
+        
+        # Tempo entre os sorteios em segundos
+        self.tempo_para_sorteio = 0.2 #Tempo para testes
+        # self.tempo_para_sorteio = 3 #Tempo de espera entre os sorteios 
+         
         
         # Flags de controle
         self.jogo_em_andamento = False
@@ -57,33 +61,37 @@ class PartidaBingo:
     
     def remover_cliente(self, cliente_socket):
         """
-        Remove um cliente da partida
+        Remove um cliente da partida e notifica outros jogadores
         """
         with self.lock:
+            nome_jogador = "Jogador desconhecido"
+            if cliente_socket in self.nomes_jogadores:
+                nome_jogador = self.nomes_jogadores[cliente_socket]
+                del self.nomes_jogadores[cliente_socket]
+                
+            if cliente_socket in self.clientes:
+                self.clientes.remove(cliente_socket)
+            if cliente_socket in self.clientes_prontos:
+                self.clientes_prontos.remove(cliente_socket)
+            
             try:
-                if cliente_socket in self.clientes:
-                    self.clientes.remove(cliente_socket)
-                if cliente_socket in self.clientes_prontos:
-                    self.clientes_prontos.remove(cliente_socket)
-                
-                try:
-                    cliente_socket.shutdown(socket.SHUT_RDWR)
-                    cliente_socket.close()
-                except:
-                    pass
-                
-                print(f"Cliente removido da partida {self.codigo_partida}. Jogadores restantes: {len(self.clientes_prontos)}")
-                
-                # Se não houver jogadores suficientes durante o jogo, finaliza
-                if self.jogo_em_andamento and len(self.clientes_prontos) < self.min_clientes:
-                    print(f"\nNão há jogadores suficientes para continuar a partida {self.codigo_partida}. Encerrando jogo...")
-                    self.finalizar_jogo('JOGO_CANCELADO')
-                    return "partida_cancelada"
-                
-                return "cliente_removido"
-            except Exception as e:
-                print(f"Erro ao remover cliente da partida {self.codigo_partida}: {e}")
-                return "erro"
+                cliente_socket.shutdown(socket.SHUT_RDWR)
+                cliente_socket.close()
+            except:
+                pass
+            
+            print(f"Jogador '{nome_jogador}' desconectado da partida {self.codigo_partida}. Jogadores restantes: {len(self.clientes_prontos)}")
+            
+            # Notificar todos os jogadores sobre a saída
+            self.enviar_mensagem_para_todos(f"JOGADOR_SAIU:{nome_jogador}")
+            
+            # Se não houver jogadores suficientes durante o jogo, finaliza
+            if self.jogo_em_andamento and len(self.clientes_prontos) < self.min_clientes:
+                print(f"\nNão há jogadores suficientes para continuar a partida {self.codigo_partida}. Encerrando jogo...")
+                self.finalizar_jogo('JOGO_CANCELADO:Não há jogadores suficientes')
+                return "partida_cancelada"
+            
+            return "cliente_removido"
     
     def verificar_bingo(self, cliente_socket):
         """
@@ -92,8 +100,10 @@ class PartidaBingo:
         vencedor = self.nomes_jogadores.get(cliente_socket, "Jogador desconhecido")
         print(f"\n--- BINGO! {vencedor} venceu a partida {self.codigo_partida}! ---")
         self.finalizar_jogo('BINGO_VENCEDOR', vencedor)
+        self.jogo_em_andamento = False
+
         return True
-    
+
     def iniciar_jogo(self):
         """
         Inicia o jogo
@@ -133,7 +143,7 @@ class PartidaBingo:
                 break
             
             # Pausa entre os sorteios
-            time.sleep(3)
+            time.sleep(self.tempo_para_sorteio)
         
         # Finaliza o jogo se não foi finalizado por bingo
         if self.jogo_em_andamento:
@@ -201,3 +211,19 @@ class PartidaBingo:
             self.nomes_jogadores.clear()
             
             print(f"\nPartida {self.codigo_partida} finalizada.")
+            
+    def enviar_mensagem_para_todos(self, mensagem):
+        """
+        Envia uma mensagem para todos os clientes conectados
+        """
+        with self.lock:
+            clientes_remover = []
+            for cliente in self.clientes[:]:  # Cria uma cópia da lista para iterar
+                try:
+                    cliente.send(mensagem.encode('utf-8'))
+                except:
+                    clientes_remover.append(cliente)
+            
+            # Remove clientes desconectados
+            for cliente in clientes_remover:
+                self.remover_cliente(cliente)
