@@ -281,22 +281,21 @@ class PartidaBingo:
             # Aguarda um momento para garantir que todos recebam a mensagem
             time.sleep(2)
             
-            # Fecha as conexões e remove todos os jogadores
+            # Fecha as conexões de todos os clientes
             for cliente in clientes_copia:
                 try:
                     cliente.shutdown(socket.SHUT_RDWR)
                     cliente.close()
                 except:
                     pass
-                self.remover_cliente(cliente)
             
-            # Limpa as listas
+            # Limpa as listas diretamente
             self.clientes.clear()
             self.clientes_prontos.clear()
             self.nomes_jogadores.clear()
             
             print(f"\nPartida {self.codigo_partida} finalizada com sucesso.")
-            
+                
     def enviar_mensagem_para_todos(self, mensagem):
         """
         Envia uma mensagem para todos os clientes conectados
