@@ -1,83 +1,8 @@
 import socket
 import threading
-import numpy as np
-import random
 import time
 import sys
-
-
-class CarteldeBingo:
-    def __init__(self):
-        # Definindo os intervalos para cada coluna
-        self.intervalos = {
-            'B': (1, 15),
-            'I': (16, 30),
-            'N': (31, 45),
-            'G': (46, 60),
-            'O': (61, 75)
-        }
-        
-        # Inicializando a cartela de números
-        self.cartela_numeros = np.zeros((5, 5), dtype=int)
-        
-        # Inicializando a matriz binária de marcação
-        self.cartela_marcacao = np.zeros((5, 5), dtype=bool)
-        
-        # Gerar a cartela
-        self.gerar_cartela()
-    
-    def gerar_cartela(self):
-        """
-        Gera a cartela de bingo seguindo as regras especificadas
-        """
-        for coluna, (inicio, fim) in enumerate(self.intervalos.values()):
-            # Gerar números únicos para cada coluna
-            numeros_coluna = random.sample(range(inicio, fim + 1), 5)
-            
-            # Preencher a coluna na matriz
-            self.cartela_numeros[:, coluna] = numeros_coluna
-        
-        # Garantir que o centro seja um espaço livre (0)
-        self.cartela_numeros[2, 2] = 0
-        self.cartela_marcacao[2, 2] = True  # Centro sempre marcado
-    
-    def marcar_numero(self, numero):
-        """
-        Marca um número na cartela se ele existir
-        
-        :param numero: Número a ser marcado
-        :return: True se o número foi marcado, False caso contrário
-        """
-        for linha in range(5):
-            for coluna in range(5):
-                if self.cartela_numeros[linha, coluna] == numero:
-                    self.cartela_marcacao[linha, coluna] = True
-                    return True
-        return False
-    
-    def verificar_bingo(self):
-        """
-        Verifica se a cartela tem bingo
-        
-        :return: True se há bingo, False caso contrário
-        """
-        # Cria uma cópia para não modificar a original
-        verificacao = self.cartela_marcacao.copy()
-        
-        # Ignora o centro (já que ele começa marcado)
-        verificacao[2, 2] = True
-        
-        # Retorna True apenas se TODAS as posições forem True
-        return np.all(verificacao)
-    
-    def imprimir_cartela(self):
-        """
-        Imprime a cartela de números e a matriz de marcação
-        """
-        print("\nCartela de Números:")
-        print(self.cartela_numeros)
-        print("\nCartela de Marcação:")
-        print(self.cartela_marcacao)
+from cartela import GerenciadorCartelas
 
 class ClienteBingo:
     def __init__(self, host='localhost', porta=12345, max_tentativas=3):
@@ -86,69 +11,17 @@ class ClienteBingo:
         self.porta = porta
         self.max_tentativas = max_tentativas
         
-        # Lista de cartelas do jogador (inicialmente uma)
-        self.cartelas = [CarteldeBingo()]
-        
         # Criar socket do cliente
         self.cliente = None
-        
-        # Lista de números sorteados
-        self.numeros_sorteados = []
         
         # Flag para controle de thread
         self.rodando = False
         
-        # Flag para controle de bingo
-        self.bingo_feito = False
-        
         # Código da partida
         self.codigo_partida = None
-    
-    def adicionar_cartela(self):
-        """
-        Adiciona uma nova cartela ao jogador, se ele ainda não tiver 3
-        """
-        if len(self.cartelas) < 3:
-            nova_cartela = CarteldeBingo()
-            self.cartelas.append(nova_cartela)
-            print("\n--- Nova cartela adicionada! ---")
-            nova_cartela.imprimir_cartela()
-            return True
-        else:
-            print("\n--- Você já tem o número máximo de cartelas (3)! ---")
-            return False
         
-    def marcar_numero_em_todas_cartelas(self, numero):
-        """
-        Marca um número em todas as cartelas do jogador
-        
-        :param numero: Número a ser marcado
-        :return: True se o número foi marcado em pelo menos uma cartela, False caso contrário
-        """
-        marcado = False
-        for cartela in self.cartelas:
-            if cartela.marcar_numero(numero):
-                marcado = True
-        return marcado
-    
-    def verificar_bingo_em_todas_cartelas(self):
-        """
-        Verifica se há bingo em alguma das cartelas do jogador
-        
-        :return: True se há bingo em pelo menos uma cartela, False caso contrário
-        """
-        for i, cartela in enumerate(self.cartelas, 1):
-            if cartela.verificar_bingo():
-                return i
-        return None
-    
-    def imprimir_todas_cartelas(self):
-        """
-        Imprime todas as cartelas do jogador
-        """
-        for i, cartela in enumerate(self.cartelas, 1):
-            print(f"\n--- Cartela {i} ---")
-            cartela.imprimir_cartela()
+        # Gerenciador de cartelas
+        self.gerenciador_cartelas = GerenciadorCartelas()
     
     def menu_interativo(self):
         """
@@ -163,7 +36,7 @@ class ClienteBingo:
             opcao = input("Escolha uma opção: ")
             
             if opcao == '1':
-                self.adicionar_cartela()
+                self.gerenciador_cartelas.adicionar_cartela()
             elif opcao == '2':
                 break
             elif opcao == '3':
@@ -172,7 +45,6 @@ class ClienteBingo:
             else:
                 print("Opção inválida!")
     
-
     def conectar(self, codigo_partida=None):
         tentativas = 0
         while tentativas < self.max_tentativas:
@@ -194,8 +66,7 @@ class ClienteBingo:
                     self.cliente.send((codigo_partida.strip() or "NOVOPARTIDA").encode('utf-8'))
                     
                     # Recebe o código real da partida do servidor
-                    codigo_real = self.cliente.recv(1024).decode('utf-8')
-                    self.codigo_partida = codigo_real
+                    self.codigo_partida = self.cliente.recv(1024).decode('utf-8')
                     print(f"Você está na partida com código: {self.codigo_partida}")
                     
                     # Recebe a resposta do servidor sobre a entrada na partida
@@ -207,19 +78,11 @@ class ClienteBingo:
                         self.fechar_conexao()
                         return False
                     
-                    if resposta_partida != "pode_entrar":
-                        print(f"\nResposta inesperada do servidor: {resposta_partida}")
-                        self.fechar_conexao()
-                        return False
-                    
-                    # Se chegou aqui, pode entrar na partida
-                    self.imprimir_todas_cartelas()
+                    self.gerenciador_cartelas.imprimir_todas_cartelas()
                     self.menu_interativo()
                     
-                    # Envia confirmação de pronto
                     self.cliente.send('PRONTO'.encode('utf-8'))
                     
-                    # Inicia a thread para receber números
                     self.rodando = True
                     threading.Thread(target=self.receber_numeros).start()
                     return True
@@ -238,7 +101,6 @@ class ClienteBingo:
         print("Não foi possível conectar ao servidor após várias tentativas.")
         return False
 
-
     def receber_numeros(self):
         """
         Recebe números sorteados do servidor
@@ -256,9 +118,9 @@ class ClienteBingo:
                 if dados.startswith('BINGO_VENCEDOR:'):
                     vencedor = dados.split(':')[1]
                     print("\n--- RESULTADO FINAL ---")
-                    print("Números sorteados:", self.numeros_sorteados)
+                    print("Números sorteados:", self.gerenciador_cartelas.get_numeros_sorteados())
                     if vencedor == self.nome_jogador:
-                        print(f"\n--- BINGO! Você venceu com a cartela {self.verificar_bingo_em_todas_cartelas()}! ---")
+                        print(f"\n--- BINGO! Você venceu com a cartela {self.gerenciador_cartelas.verificar_bingo_em_todas_cartelas()}! ---")
                         print("Parabéns! Você foi o primeiro a completar sua cartela!")
                     else:
                         print(f"\n--- BINGO! O jogador {vencedor} venceu a partida! ---")
@@ -270,36 +132,36 @@ class ClienteBingo:
                     motivo = dados.split(':', 1)[1]
                     print("\n--- JOGO CANCELADO ---")
                     print("Motivo:", motivo)
-                    print("Números sorteados:", self.numeros_sorteados)
+                    print("Números sorteados:", self.gerenciador_cartelas.get_numeros_sorteados())
                     self.rodando = False
                     break
                 
                 if dados == 'FIM_JOGO' or dados == 'SERVIDOR_ENCERRADO':
                     print("\n--- Jogo Encerrado ---")
-                    print("Números sorteados:", self.numeros_sorteados)
+                    print("Números sorteados:", self.gerenciador_cartelas.get_numeros_sorteados())
                     self.rodando = False
                     break
                 
                 try:
                     # Tenta interpretar como um número
                     numero = int(dados)
-                    self.numeros_sorteados.append(numero)
+                    self.gerenciador_cartelas.adicionar_numero_sorteado(numero)
                     
                     print(f"\n--- Número sorteado: {numero} ---")
-                    print(f"Números já sorteados: {self.numeros_sorteados}")
+                    print(f"Números já sorteados: {self.gerenciador_cartelas.get_numeros_sorteados()}")
                     
                     # Marca nas cartelas
-                    if self.marcar_numero_em_todas_cartelas(numero):
+                    if self.gerenciador_cartelas.marcar_numero_em_todas_cartelas(numero):
                         print("Número marcado em pelo menos uma cartela!")
                         
                         # Imprime cartelas atualizadas
-                        self.imprimir_todas_cartelas()
+                        self.gerenciador_cartelas.imprimir_todas_cartelas()
                         
                         # Verifica bingo
-                        cartela_vencedora = self.verificar_bingo_em_todas_cartelas()
-                        if cartela_vencedora is not None and not self.bingo_feito:
+                        cartela_vencedora = self.gerenciador_cartelas.verificar_bingo_em_todas_cartelas()
+                        if cartela_vencedora is not None and not self.gerenciador_cartelas.bingo_feito:
                             print(f"\n--- BINGO! Você venceu com a cartela {cartela_vencedora}! ---")
-                            self.bingo_feito = True
+                            self.gerenciador_cartelas.bingo_feito = True
                             # Envia notificação ao servidor
                             try:
                                 self.cliente.send('BINGO'.encode('utf-8'))
