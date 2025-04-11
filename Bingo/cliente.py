@@ -44,6 +44,38 @@ class ClienteBingo:
                 sys.exit()
             else:
                 print("Opção inválida!")
+
+    def listar_partidas_publicas(self):
+        """
+        Solicita e exibe a lista de partidas públicas disponíveis
+        """
+        try:
+            socket_temp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket_temp.connect((self.host, self.porta))
+            
+            # Recebe a mensagem de conexão bem-sucedida
+            resposta = socket_temp.recv(1024).decode('utf-8')
+            if resposta != 'CONECTADO':
+                print("Erro ao conectar ao servidor para listar partidas")
+                socket_temp.close()
+                return []
+            
+            # Envia comando especial para listar partidas
+            socket_temp.send('LISTAR_PARTIDAS'.encode('utf-8'))
+            
+            # Recebe a lista de partidas
+            resposta = socket_temp.recv(1024).decode('utf-8')
+            socket_temp.send('SAIR'.encode('utf-8'))
+            socket_temp.close()
+            
+            if resposta.startswith('PARTIDAS_PUBLICAS:'):
+                partidas = resposta.split(':', 1)[1].split(',')
+                return [p for p in partidas if p]  # Filtra strings vazias
+            
+            return []
+        except Exception as e:
+            print(f"Erro ao listar partidas públicas: {e}")
+            return []
     
     def conectar(self, codigo_partida=None):
         tentativas = 0
@@ -61,9 +93,46 @@ class ClienteBingo:
                     
                     if codigo_partida is None:
                         print("\nVocê pode entrar em uma partida existente ou criar uma nova.")
-                        codigo_partida = input("Digite o código da partida (deixe em branco para criar automaticamente): ")
+                        print("1. Criar nova partida pública")
+                        print("2. Criar nova partida privada")
+                        print("3. Entrar em uma partida existente")
+                        print("4. Listar partidas públicas disponíveis")
+                        
+                        opcao = input("Escolha uma opção: ")
+                        
+                        if opcao == '1':
+                            codigo_partida = "NOVOPARTIDA:0"  # 0 = pública
+                        elif opcao == '2':
+                            codigo_partida = "NOVOPARTIDA:1"  # 1 = privada
+                        elif opcao == '3':
+                            codigo_partida = input("Digite o código da partida: ")
+                        elif opcao == '4':
+                            partidas = self.listar_partidas_publicas()
+                            if partidas:
+                                print("\nPartidas públicas disponíveis:")
+                                for i, partida in enumerate(partidas, 1):
+                                    print(f"{i}. {partida}")
+                                
+                                try:
+                                    indice = int(input("\nDigite o número da partida para entrar (0 para cancelar): "))
+                                    if 1 <= indice <= len(partidas):
+                                        codigo_partida = partidas[indice-1]
+                                    else:
+                                        print("Operação cancelada. Tentando nova conexão...")
+                                        self.cliente.close()
+                                        continue
+                                except:
+                                    print("Opção inválida. Tentando nova conexão...")
+                                    self.cliente.close()
+                                    continue
+                            else:
+                                print("Não há partidas públicas disponíveis. Criando uma nova partida pública.")
+                                codigo_partida = "NOVOPARTIDA:0"
+                        else:
+                            print("Opção inválida. Criando uma nova partida pública.")
+                            codigo_partida = "NOVOPARTIDA:0"
                     
-                    self.cliente.send((codigo_partida.strip() or "NOVOPARTIDA").encode('utf-8'))
+                    self.cliente.send(codigo_partida.encode('utf-8'))
                     
                     # Recebe o código real da partida do servidor
                     self.codigo_partida = self.cliente.recv(1024).decode('utf-8')

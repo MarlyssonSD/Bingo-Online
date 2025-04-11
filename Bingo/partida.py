@@ -2,10 +2,14 @@ import socket
 import threading
 import time
 import random
+
 class PartidaBingo:
-    def __init__(self, codigo_partida, min_clientes=2, max_clientes=10, tempo_espera=6): #Alterar para testes rápidos
+    def __init__(self, codigo_partida, min_clientes=2, max_clientes=10, tempo_espera=6, publica=True):
         # Identificador da partida
         self.codigo_partida = codigo_partida
+        
+        # Flag para indicar se a partida é pública ou privada
+        self.publica = publica
         
         # Configurações da partida
         self.min_clientes = min_clientes
@@ -21,7 +25,7 @@ class PartidaBingo:
         self.numeros_sorteados = []
         
         # Tempo entre os sorteios em segundos
-        self.tempo_para_sorteio = 3 #Tempo para testes
+        self.tempo_para_sorteio = 1 #Tempo para testes
         # self.tempo_para_sorteio = 3 #Tempo de espera entre os sorteios 
         
         # Flags de controle
@@ -36,7 +40,8 @@ class PartidaBingo:
         # Lock para sincronização
         self.lock = threading.Lock()
         
-        print(f"Partida {self.codigo_partida} criada. Aguardando jogadores...")
+        print(f"Partida {self.codigo_partida} criada. Status: {'Pública' if self.publica else 'Privada'}. Aguardando jogadores...")
+
     
     def adicionar_cliente(self, cliente_socket, nome_jogador):
         """

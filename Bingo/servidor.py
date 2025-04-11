@@ -23,6 +23,9 @@ class ServidorBingo:
         # Dicionário de partidas ativas (código_partida -> objeto PartidaBingo)
         self.partidas = {}
         
+        # Lista de partidas públicas disponíveis
+        self.partidas_publicas = []
+        
         # Locks para sincronização
         self.lock_partidas = threading.Lock()
         
@@ -43,6 +46,11 @@ class ServidorBingo:
         with self.lock_partidas:
             if codigo_partida in self.partidas:
                 partida = self.partidas[codigo_partida]
+                
+                # Remove da lista de partidas públicas se estiver lá
+                if codigo_partida in self.partidas_publicas:
+                    self.partidas_publicas.remove(codigo_partida)
+                    
                 if motivo:
                     print(f"\nRemovendo partida {codigo_partida}: {motivo}")
                 else:
@@ -51,11 +59,38 @@ class ServidorBingo:
                 return True
             return False
     
-    def criar_ou_obter_partida(self, codigo_partida):
+    def listar_partidas_publicas(self):
         """
-        Cria uma nova partida ou retorna uma existente com o código fornecido
+        Retorna uma lista de códigos de partidas públicas disponíveis
         """
         with self.lock_partidas:
+            partidas_disponiveis = []
+            for codigo in self.partidas_publicas:
+                if codigo in self.partidas and not self.partidas[codigo].jogo_em_andamento:
+                    partidas_disponiveis.append(codigo)
+            return partidas_disponiveis
+    
+    def criar_ou_obter_partida(self, codigo_partida, publica=True):
+        """
+        Cria uma nova partida ou retorna uma existente com o código fornecido
+        
+        :param codigo_partida: Código da partida a ser criada ou obtida
+        :param publica: Booleano indicando se a partida é pública (True) ou privada (False)
+        :return: Tupla com código da partida e objeto PartidaBingo
+        """
+        with self.lock_partidas:
+            # Processa strings específicas de comando
+            info_partida = codigo_partida.split(':')
+            
+            # Verifica se há informação sobre o tipo de partida (formato: NOVOPARTIDA:0 ou NOVOPARTIDA:1)
+            if len(info_partida) > 1 and info_partida[0].lower() == "novopartida":
+                try:
+                    publica = int(info_partida[1]) == 0  # 0 = pública, 1 = privada
+                except:
+                    publica = True  # padrão é público se houver erro
+                
+                codigo_partida = info_partida[0]  # Mantém apenas o comando base
+            
             # Se o código é para criar uma nova partida
             if codigo_partida.lower() == "novopartida":
                 # Gera um código aleatório único
@@ -65,15 +100,42 @@ class ServidorBingo:
                         break
                 
                 codigo_partida = novo_codigo
+                
+                # Cria uma nova partida com a flag publica
+                print(f"\nCriando nova partida com código: {codigo_partida}, Status: {'Pública' if publica else 'Privada'}")
+                partida = PartidaBingo(codigo_partida, 
+                                      self.min_clientes, 
+                                      self.max_clientes, 
+                                      self.tempo_espera,
+                                      publica)
+                                      
+                self.partidas[codigo_partida] = partida
+                
+                # Adiciona à lista de partidas públicas se for pública
+                if publica:
+                    self.partidas_publicas.append(codigo_partida)
+                    print(f"Partida {codigo_partida} adicionada à lista de partidas públicas")
+                
+                return codigo_partida, partida
             
             # Verifica se a partida já existe
             if codigo_partida not in self.partidas:
-                # Cria uma nova partida
-                print(f"\nCriando nova partida com código: {codigo_partida}")
-                self.partidas[codigo_partida] = PartidaBingo(codigo_partida, 
-                                                          self.min_clientes, 
-                                                          self.max_clientes, 
-                                                          self.tempo_espera)
+                # Cria uma nova partida com código específico e flag pública
+                print(f"\nCriando nova partida com código específico: {codigo_partida}, Status: {'Pública' if publica else 'Privada'}")
+                partida = PartidaBingo(codigo_partida, 
+                                      self.min_clientes, 
+                                      self.max_clientes, 
+                                      self.tempo_espera,
+                                      publica)
+                                      
+                self.partidas[codigo_partida] = partida
+                
+                # Adiciona à lista de partidas públicas se for pública
+                if publica:
+                    self.partidas_publicas.append(codigo_partida)
+                    print(f"Partida {codigo_partida} adicionada à lista de partidas públicas")
+                
+                return codigo_partida, partida
             
             return codigo_partida, self.partidas[codigo_partida]
     
@@ -95,15 +157,44 @@ class ServidorBingo:
                 cliente_socket.close()
                 return
             
-            # Recebe o código da partida
-            codigo_partida_recebido = cliente_socket.recv(1024).decode('utf-8')
-            if not codigo_partida_recebido:
+            # Verifica se o cliente solicitou a lista de partidas públicas
+            if nome_jogador == "LISTAR_PARTIDAS":
+                partidas_disponiveis = self.listar_partidas_publicas()
+                resposta = "PARTIDAS_PUBLICAS:" + ",".join(partidas_disponiveis)
+                cliente_socket.send(resposta.encode('utf-8'))
+                # Espera para ver se o cliente vai se conectar com uma partida específica
+                try:
+                    nome_jogador = cliente_socket.recv(1024).decode('utf-8')
+                    if not nome_jogador or nome_jogador == "SAIR":
+                        cliente_socket.close()
+                        return
+                except:
+                    cliente_socket.close()
+                    return
+            
+            # Recebe o código da partida e informação sobre pública/privada
+            codigo_partida_info = cliente_socket.recv(1024).decode('utf-8')
+            if not codigo_partida_info:
                 print(f"Cliente {endereco} desconectou sem informar código da partida")
                 cliente_socket.close()
                 return
             
+            # Parse da informação da partida
+            info_partida = codigo_partida_info.split(':')
+            publica = True  # padrão é público
+            
+            if len(info_partida) > 1:
+                try:
+                    publica = int(info_partida[1]) == 0  # 0 = pública, 1 = privada
+                except:
+                    publica = True  # padrão é público se houver erro
+                
+                codigo_partida_recebido = info_partida[0]
+            else:
+                codigo_partida_recebido = codigo_partida_info
+            
             # Cria ou obtém a partida solicitada
-            codigo_partida, partida = self.criar_ou_obter_partida(codigo_partida_recebido)
+            codigo_partida, partida = self.criar_ou_obter_partida(codigo_partida_recebido, publica)
             
             # Envia o código real da partida para o cliente
             try:
@@ -114,6 +205,10 @@ class ServidorBingo:
                 cliente_socket.close()
                 return
             
+            # Resto do código permanece o mesmo
+            # ...
+            
+            # A parte restante do método permanece inalterada
             # Adiciona o cliente à partida
             resultado = partida.adicionar_cliente(cliente_socket, nome_jogador)
             
@@ -181,7 +276,7 @@ class ServidorBingo:
             # Verifica se a partida terminou e deve ser removida
             if codigo_partida and partida and partida.partida_encerrada:
                 self.remover_partida(codigo_partida, "Partida encerrada")
-        
+
         except Exception as e:
             print(f"Erro ao gerenciar cliente {endereco}: {e}")
             # Se tiver uma partida associada, tenta remover o cliente
