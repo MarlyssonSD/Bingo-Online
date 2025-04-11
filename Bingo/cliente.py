@@ -77,6 +77,28 @@ class ClienteBingo:
             print(f"Erro ao listar partidas públicas: {e}")
             return []
     
+    def verificar_partida_existe(self, codigo_partida):
+        """
+        Verifica se uma partida específica existe no servidor
+        """
+        # Lista todas as partidas públicas primeiro
+        partidas_disponiveis = self.listar_partidas_publicas()
+        
+        # Verifica se o código está na lista
+        return codigo_partida in partidas_disponiveis
+    
+    def exibir_menu_principal(self):
+        """
+        Exibe o menu principal de opções
+        """
+        print("\nVocê pode entrar em uma partida existente ou criar uma nova.")
+        print("1. Criar nova partida pública")
+        print("2. Criar nova partida privada")
+        print("3. Entrar em uma partida existente")
+        print("4. Listar partidas públicas disponíveis")
+        
+        return input("Escolha uma opção: ")
+    
     def conectar(self, codigo_partida=None):
         tentativas = 0
         while tentativas < self.max_tentativas:
@@ -91,21 +113,39 @@ class ClienteBingo:
                     self.nome_jogador = input("Digite seu nome: ")
                     self.cliente.send(self.nome_jogador.encode('utf-8'))
                     
-                    if codigo_partida is None:
-                        print("\nVocê pode entrar em uma partida existente ou criar uma nova.")
-                        print("1. Criar nova partida pública")
-                        print("2. Criar nova partida privada")
-                        print("3. Entrar em uma partida existente")
-                        print("4. Listar partidas públicas disponíveis")
-                        
-                        opcao = input("Escolha uma opção: ")
+                    # Loop para garantir uma escolha válida
+                    while codigo_partida is None:
+                        opcao = self.exibir_menu_principal()
                         
                         if opcao == '1':
                             codigo_partida = "NOVOPARTIDA:0"  # 0 = pública
                         elif opcao == '2':
                             codigo_partida = "NOVOPARTIDA:1"  # 1 = privada
                         elif opcao == '3':
-                            codigo_partida = input("Digite o código da partida: ")
+                            # Mostrar partidas disponíveis primeiro
+                            partidas = self.listar_partidas_publicas()
+                            if not partidas:
+                                print("Não há partidas públicas disponíveis.")
+                                print("Você pode apenas criar uma nova partida ou tentar novamente.")
+                                continue  # Volta ao menu principal
+                            
+                            print("\nPartidas públicas disponíveis:")
+                            for i, partida in enumerate(partidas, 1):
+                                print(f"{i}. {partida}")
+                            print("0. Voltar ao menu principal")
+                            
+                            codigo_digitado = input("Digite o código exato da partida: ")
+                            
+                            # Verifica se o usuário quer voltar ao menu
+                            if codigo_digitado == '0':
+                                continue  # Volta ao menu principal
+                            
+                            # Verifica se a partida existe
+                            if not self.verificar_partida_existe(codigo_digitado):
+                                print(f"A partida com código '{codigo_digitado}' não existe.")
+                                continue  # Volta ao menu principal
+                            
+                            codigo_partida = codigo_digitado
                         elif opcao == '4':
                             partidas = self.listar_partidas_publicas()
                             if partidas:
@@ -114,23 +154,31 @@ class ClienteBingo:
                                     print(f"{i}. {partida}")
                                 
                                 try:
-                                    indice = int(input("\nDigite o número da partida para entrar (0 para cancelar): "))
+                                    indice = int(input("\nDigite o número da partida para entrar (0 para voltar): "))
                                     if 1 <= indice <= len(partidas):
                                         codigo_partida = partidas[indice-1]
+                                    elif indice == 0:
+                                        continue  # Volta ao menu principal
                                     else:
-                                        print("Operação cancelada. Tentando nova conexão...")
-                                        self.cliente.close()
+                                        print("Opção inválida. Tente novamente.")
                                         continue
-                                except:
-                                    print("Opção inválida. Tentando nova conexão...")
-                                    self.cliente.close()
+                                except ValueError:
+                                    print("Por favor, digite um número válido.")
                                     continue
                             else:
-                                print("Não há partidas públicas disponíveis. Criando uma nova partida pública.")
-                                codigo_partida = "NOVOPARTIDA:0"
+                                print("Não há partidas públicas disponíveis.")
+                                print("Você pode apenas criar uma nova partida.")
+                                print("1. Criar partida pública")
+                                print("2. Voltar ao menu principal")
+                                
+                                sub_opcao = input("Escolha uma opção: ")
+                                if sub_opcao == '1':
+                                    codigo_partida = "NOVOPARTIDA:0"
+                                else:
+                                    continue  # Volta ao menu principal
                         else:
-                            print("Opção inválida. Criando uma nova partida pública.")
-                            codigo_partida = "NOVOPARTIDA:0"
+                            print("Opção inválida. Tente novamente.")
+                            continue
                     
                     self.cliente.send(codigo_partida.encode('utf-8'))
                     
@@ -145,7 +193,8 @@ class ClienteBingo:
                         print("Esta partida já está em andamento e não é possível entrar agora.")
                         print("Por favor, tente entrar em outra partida ou crie uma nova.")
                         self.fechar_conexao()
-                        return False
+                        codigo_partida = None  # Reseta para tentar novamente
+                        continue
                     
                     self.gerenciador_cartelas.imprimir_todas_cartelas()
                     self.menu_interativo()
