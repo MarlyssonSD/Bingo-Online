@@ -3,6 +3,7 @@ import threading
 import time
 import random
 import sys
+from partida import PartidaBingo
 
 class ServidorBingo:
     def __init__(self, host='0.0.0.0', porta=12345, min_clientes=2, max_clientes=10, tempo_espera=30):
@@ -15,109 +16,167 @@ class ServidorBingo:
         
         # Socket do servidor
         self.servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permite reutilizar o endereço
         self.servidor.bind((self.host, self.porta))
-        self.servidor.listen(self.max_clientes)
+        self.servidor.listen(100)  # Aumentado para permitir mais conexões
         
-        # Lista de clientes conectados
-        self.clientes = []
-        self.clientes_prontos = []
-        self.nomes_jogadores = {} 
+        # Dicionário de partidas ativas (código_partida -> objeto PartidaBingo)
+        self.partidas = {}
         
-        # Números já sorteados
-        self.numeros_sorteados = []
+        # Locks para sincronização
+        self.lock_partidas = threading.Lock()
         
-        # Flags de controle
-        self.jogo_em_andamento = False
+        # Flag de controle
         self.aceitando_conexoes = True
-        self.sorteio_iniciado = False
-        
-        # Lock para sincronização
-        self.lock = threading.Lock()
         
         print(f"Servidor de Bingo iniciado em {self.host}:{self.porta}")
-        print(f"Número mínimo de jogadores: {self.min_clientes}, máximo de jogadores: {self.max_clientes}")
+        print(f"Configuração: min_jogadores={self.min_clientes}, max_jogadores={self.max_clientes}, tempo_espera={self.tempo_espera}s")
+    
+    def remover_partida(self, codigo_partida, motivo=None):
+        """
+        Remove uma partida do dicionário de partidas ativas
+        
+        :param codigo_partida: Código da partida a ser removida
+        :param motivo: Motivo da remoção, para registro
+        :return: True se a partida foi removida, False caso contrário
+        """
+        with self.lock_partidas:
+            if codigo_partida in self.partidas:
+                partida = self.partidas[codigo_partida]
+                if motivo:
+                    print(f"\nRemovendo partida {codigo_partida}: {motivo}")
+                else:
+                    print(f"\nRemovendo partida {codigo_partida}")
+                del self.partidas[codigo_partida]
+                return True
+            return False
+    
+    def criar_ou_obter_partida(self, codigo_partida):
+        """
+        Cria uma nova partida ou retorna uma existente com o código fornecido
+        """
+        with self.lock_partidas:
+            # Se o código é para criar uma nova partida
+            if codigo_partida.lower() == "novopartida":
+                # Gera um código aleatório único
+                while True:
+                    novo_codigo = f"partida_{random.randint(1000, 9999)}"
+                    if novo_codigo not in self.partidas:
+                        break
+                
+                codigo_partida = novo_codigo
+            
+            # Verifica se a partida já existe
+            if codigo_partida not in self.partidas:
+                # Cria uma nova partida
+                print(f"\nCriando nova partida com código: {codigo_partida}")
+                self.partidas[codigo_partida] = PartidaBingo(codigo_partida, 
+                                                          self.min_clientes, 
+                                                          self.max_clientes, 
+                                                          self.tempo_espera)
+            
+            return codigo_partida, self.partidas[codigo_partida]
     
     def gerenciar_cliente(self, cliente_socket, endereco):
         """
         Gerencia a conexão com cada cliente
         """
+        codigo_partida = None
+        partida = None
+        
         try:
-            # Se o jogo já começou ou o tempo de espera acabou, recusa a conexão
-            if self.jogo_em_andamento or self.sorteio_iniciado:
-                cliente_socket.send('JOGO_EM_ANDAMENTO'.encode('utf-8'))
-                cliente_socket.close()
-                return
-            
             # Envia confirmação de conexão
             cliente_socket.send('CONECTADO'.encode('utf-8'))
             
+            # Recebe o nome do jogador
             nome_jogador = cliente_socket.recv(1024).decode('utf-8')
-
-            # Aguarda confirmação do cliente
-            cliente_socket.recv(1024)
+            if not nome_jogador:
+                print(f"Cliente {endereco} desconectou sem informar nome")
+                cliente_socket.close()
+                return
             
-            # Adiciona o cliente à lista de clientes prontos
-            with self.lock:
-                if cliente_socket not in self.clientes:
-                    self.clientes.append(cliente_socket)
-                if cliente_socket not in self.clientes_prontos:
-                    self.clientes_prontos.append(cliente_socket)
-                    self.nomes_jogadores[cliente_socket] = nome_jogador
-                    print(f"\nJogador '{nome_jogador}' conectado: {endereco}. Total: {len(self.clientes_prontos)}/{self.max_clientes}")                
-                
-                # Inicia o jogo se atingiu o número máximo de jogadores
-                if len(self.clientes_prontos) >= self.max_clientes and not self.sorteio_iniciado:
-                    print("\nNúmero máximo de jogadores atingido. Iniciando o jogo...")
-                    self.jogo_em_andamento = True
-                    self.sorteio_iniciado = True
-                    threading.Thread(target=self.iniciar_sorteio).start()
-                
-                # Se atingiu 2 jogadores, inicia o tempo de espera
-                elif len(self.clientes_prontos) == 2 and not self.sorteio_iniciado:
-                    print("\nDois jogadores conectados. Aguardando mais jogadores por 30 segundos...")
-                    threading.Thread(target=self.iniciar_temporizador).start()
+            # Recebe o código da partida
+            codigo_partida_recebido = cliente_socket.recv(1024).decode('utf-8')
+            if not codigo_partida_recebido:
+                print(f"Cliente {endereco} desconectou sem informar código da partida")
+                cliente_socket.close()
+                return
             
-            # Mantém a conexão aberta
-            while not self.sorteio_iniciado:
-                time.sleep(1)
+            # Cria ou obtém a partida solicitada
+            codigo_partida, partida = self.criar_ou_obter_partida(codigo_partida_recebido)
+            
+            # Adiciona o cliente à partida
+            resultado = partida.adicionar_cliente(cliente_socket, nome_jogador)
+            
+            # Aguarda confirmação "PRONTO" do cliente
+            try:
+                confirmacao = cliente_socket.recv(1024).decode('utf-8')
+                if confirmacao != 'PRONTO':
+                    print(f"Cliente {nome_jogador} enviou confirmação inválida: {confirmacao}")
+            except:
+                print(f"Erro ao receber confirmação do cliente {nome_jogador}")
+                partida.remover_cliente(cliente_socket)
+                return
+            
+            # Inicia o temporizador se atingiu o mínimo de jogadores
+            if resultado == "iniciar_temporizador":
+                threading.Thread(target=self.iniciar_temporizador, args=(partida,)).start()
+            
+            # Inicia o jogo se atingiu o número máximo de jogadores
+            elif resultado is True:
+                partida.iniciar_jogo()
             
             # Loop para receber mensagens do cliente durante o jogo
-            while self.jogo_em_andamento:
+            while not partida.partida_encerrada:
                 try:
                     mensagem = cliente_socket.recv(1024).decode('utf-8')
                     if not mensagem:  # Cliente desconectou
-                        self.remover_cliente(cliente_socket)
+                        resultado = partida.remover_cliente(cliente_socket)
+                        if resultado == "partida_cancelada":
+                            self.remover_partida(codigo_partida, "Cancelada: jogadores insuficientes")
                         break
+                    
                     if mensagem == 'BINGO':
-                        vencedor = self.nomes_jogadores.get(cliente_socket, "Jogador desconhecido")
-                        print(f"\n--- BINGO! {vencedor} venceu! ---")
-                        self.finalizar_jogo('BINGO_VENCEDOR', vencedor)
-                        break
-                except:
-                    self.remover_cliente(cliente_socket)
+                        print(f"\nCliente {nome_jogador} informou BINGO!")
+                        if partida.verificar_bingo(cliente_socket):
+                            # Remover a partida do dicionário quando terminar
+                            self.remover_partida(codigo_partida, "Finalizada: jogador fez bingo")
+                            break
+                except Exception as e:
+                    print(f"Erro ao receber mensagem do cliente {nome_jogador}: {e}")
+                    if not partida.partida_encerrada:
+                        resultado = partida.remover_cliente(cliente_socket)
+                        if resultado == "partida_cancelada":
+                            self.remover_partida(codigo_partida, "Cancelada após erro de comunicação")
                     break
+            
+            # Verifica se a partida terminou e deve ser removida
+            if codigo_partida and partida and partida.partida_encerrada:
+                self.remover_partida(codigo_partida, "Partida encerrada")
         
         except Exception as e:
             print(f"Erro ao gerenciar cliente {endereco}: {e}")
-            self.remover_cliente(cliente_socket)
+            # Se tiver uma partida associada, tenta remover o cliente
+            if partida and cliente_socket:
+                resultado = partida.remover_cliente(cliente_socket)
+                if resultado == "partida_cancelada" and codigo_partida:
+                    self.remover_partida(codigo_partida, "Cancelada após erro no gerenciamento")
+            # Garante que o socket é fechado
+            try:
+                cliente_socket.close()
+            except:
+                pass
     
     def aguardar_conexoes(self):
         """
         Aguarda conexões dos clientes
         """
+        print("\nAguardando conexões de clientes...")
+        
         while self.aceitando_conexoes:
             try:
                 cliente_socket, endereco = self.servidor.accept()
-                
-                with self.lock:
-                    # Verifica se já atingiu o número máximo de jogadores ou se o jogo já começou
-                    if len(self.clientes_prontos) >= self.max_clientes or self.jogo_em_andamento:
-                        try:
-                            cliente_socket.send('JOGO_EM_ANDAMENTO'.encode('utf-8'))
-                            cliente_socket.close()
-                        except:
-                            pass
-                        continue
+                print(f"\nNova conexão de: {endereco}")
                 
                 # Inicia thread para gerenciar cada cliente
                 threading.Thread(target=self.gerenciar_cliente, 
@@ -127,149 +186,62 @@ class ServidorBingo:
                 if self.aceitando_conexoes:
                     print(f"Erro ao aceitar conexão: {e}")
                     time.sleep(1)
-
-    def remover_cliente(self, cliente_socket):
-        """
-        Remove um cliente de todas as listas e fecha sua conexão
-        """
-        with self.lock:
-            try:
-                if cliente_socket in self.clientes:
-                    self.clientes.remove(cliente_socket)
-                if cliente_socket in self.clientes_prontos:
-                    self.clientes_prontos.remove(cliente_socket)
-                
-                try:
-                    cliente_socket.shutdown(socket.SHUT_RDWR)  # Adiciona shutdown antes do close
-                    cliente_socket.close()
-                except:
-                    pass
-                
-                print(f"Cliente removido. Jogadores restantes: {len(self.clientes_prontos)}")
-                
-                # Se não houver jogadores suficientes durante o jogo, finaliza
-                if self.jogo_em_andamento and len(self.clientes_prontos) < self.min_clientes:
-                    print("\nNão há jogadores suficientes para continuar. Encerrando jogo...")
-                    self.finalizar_jogo('JOGO_CANCELADO')
-            except Exception as e:
-                print(f"Erro ao remover cliente: {e}")
-
-    def enviar_numero(self, numero):
-        """
-        Envia um número para todos os clientes conectados de forma segura
-        """
-        with self.lock:  # Adiciona lock para evitar problemas de concorrência
-            clientes_remover = []
-            for cliente in self.clientes[:]:  # Cria uma cópia da lista para iterar
-                try:
-                    cliente.send(str(numero).encode('utf-8'))
-                except (socket.error, ConnectionError):  # Especifica melhor os erros
-                    clientes_remover.append(cliente)
-            
-            # Remove clientes desconectados
-            for cliente in clientes_remover:
-                self.remover_cliente(cliente)
-            
-            # Se não houver mais clientes, finaliza o jogo
-            if not self.clientes:
-                print("\nTodos os clientes desconectados. Encerrando jogo.")
-                self.finalizar_jogo('TODOS_DESCONECTADOS')
-
-    def finalizar_jogo(self, mensagem='FIM_JOGO', vencedor=None):
-        """
-        Finaliza o jogo e notifica todos os clientes
-        """
-        self.jogo_em_andamento = False
-        self.sorteio_iniciado = False
-        
-        # Formata a mensagem final com informações relevantes
-        if mensagem == 'BINGO_VENCEDOR' and vencedor:
-            mensagem_final = f'BINGO_VENCEDOR:{vencedor}'
-        elif mensagem == 'JOGO_CANCELADO':
-            mensagem_final = 'JOGO_CANCELADO:Não há jogadores suficientes'
-        else:
-            mensagem_final = mensagem
-        
-        # Envia a mensagem para todos os clientes
-        for cliente in self.clientes[:]:  # Usa uma cópia da lista
-            try:
-                cliente.send(mensagem_final.encode('utf-8'))
-                time.sleep(0.1)  # Pequena pausa para evitar congestionamento
-            except:
-                pass
-        
-        # Fecha as conexões e limpa as listas
-        for cliente in self.clientes[:]:
-            try:
-                cliente.shutdown(socket.SHUT_RDWR)
-                cliente.close()
-            except:
-                pass
-        
-        self.clientes.clear()
-        self.clientes_prontos.clear()
-        self.nomes_jogadores.clear()
-        
-        if mensagem in ['JOGO_CANCELADO', 'TODOS_DESCONECTADOS']:
-            self.aceitando_conexoes = False
-            try:
-                self.servidor.close()
-            except:
-                pass
-            print("\nServidor encerrado.")
-        else:
-            print("\nJogo finalizado. Aguardando novas conexões...")
     
-    def iniciar_temporizador(self):
+    def iniciar_temporizador(self, partida):
         """
-        Inicia o temporizador de 30 segundos e depois inicia o jogo
+        Inicia o temporizador para a partida e depois inicia o jogo
         """
-        time.sleep(self.tempo_espera)  # Aguarda tempo de espera configurado
+        codigo_partida = partida.codigo_partida
+        tempo_restante = partida.tempo_espera
         
-        with self.lock:
-            if not self.sorteio_iniciado:
-                if len(self.clientes_prontos) >= 2:  # Verifica se ainda tem pelo menos 2 jogadores
-                    print(f"\n--- Início do Sorteio com {len(self.clientes_prontos)} jogadores ---")
-                    self.jogo_em_andamento = True
-                    self.sorteio_iniciado = True
-                    threading.Thread(target=self.iniciar_sorteio).start()
-                else:
-                    print("\nNão há jogadores suficientes. Cancelando jogo...")
-                    self.finalizar_jogo('JOGO_CANCELADO')
-
-    def iniciar_sorteio(self):
-        """
-        Método para sortear números a cada 5 segundos
-        """
-        # Cria uma lista de números de 1 a 75 e embaralha
-        numeros_disponiveis = list(range(1, 76))
-        random.shuffle(numeros_disponiveis)
-        
-        while self.jogo_em_andamento and len(self.numeros_sorteados) < 75:
-            # Pega o próximo número da lista embaralhada
-            numero = numeros_disponiveis.pop()
-            self.numeros_sorteados.append(numero)
+        while tempo_restante > 0 and not partida.sorteio_iniciado:
+            if tempo_restante % 5 == 0 or tempo_restante <= 3:  # Mostra a cada 5 segundos e nos últimos 3
+                print(f"\nPartida {codigo_partida}: Aguardando mais jogadores... {tempo_restante}s restantes")
             
-            # Imprime a lista de números sorteados
-            print(f"\n--- Número Sorteados ---")
-            print(self.numeros_sorteados)
-            print(f"Total de números sorteados: {len(self.numeros_sorteados)}")
+            time.sleep(1)
+            tempo_restante -= 1
             
-            # Envia o número para todos os clientes
-            self.enviar_numero(numero)
-            
-            # Verifica se ainda há clientes conectados
-            if not self.clientes:
-                print("Todos os clientes desconectados. Encerrando jogo.")
-                self.finalizar_jogo()
+            # Verifica se já atingiu o máximo de jogadores durante a espera
+            if len(partida.clientes_prontos) >= partida.max_clientes:
+                print(f"\nPartida {codigo_partida}: Número máximo de jogadores atingido durante a espera")
                 break
             
-            # Pausa entre os sorteios
-            time.sleep(3)
+            # Verifica se ainda tem jogadores suficientes
+            if len(partida.clientes_prontos) < partida.min_clientes:
+                print(f"\nPartida {codigo_partida}: Jogadores insuficientes durante a espera, reiniciando temporizador")
+                return  # Sai sem iniciar o jogo
         
-        # Finaliza o jogo se não foi finalizado por bingo
-        if self.jogo_em_andamento:
-            self.finalizar_jogo()
+        # Inicia o jogo se não foi iniciado ainda e tem jogadores suficientes
+        if not partida.sorteio_iniciado and len(partida.clientes_prontos) >= partida.min_clientes:
+            print(f"\nPartida {codigo_partida}: Temporizador concluído. Iniciando jogo com {len(partida.clientes_prontos)} jogadores")
+            partida.iniciar_jogo()
+        elif not partida.sorteio_iniciado:
+            print(f"\nPartida {codigo_partida}: Não há jogadores suficientes após o temporizador. Cancelando partida.")
+            partida.finalizar_jogo('JOGO_CANCELADO')
+            # Remove a partida do dicionário
+            self.remover_partida(codigo_partida, "Cancelada: jogadores insuficientes após temporizador")
+
+    def encerrar_servidor(self):
+        """
+        Encerra o servidor e todas as partidas ativas
+        """
+        print("\nEncerrando o servidor...")
+        self.aceitando_conexoes = False
+        
+        # Finaliza todas as partidas ativas
+        with self.lock_partidas:
+            for codigo, partida in list(self.partidas.items()):
+                try:
+                    partida.finalizar_jogo('SERVIDOR_ENCERRADO')
+                except Exception as e:
+                    print(f"Erro ao finalizar partida {codigo}: {e}")
+            self.partidas.clear()
+        
+        # Fecha o socket do servidor
+        try:
+            self.servidor.close()
+        except Exception as e:
+            print(f"Erro ao fechar socket do servidor: {e}")
 
 def main():
     # Verifica se o IP e porta foram fornecidos como argumentos
@@ -277,7 +249,7 @@ def main():
     porta = int(sys.argv[2]) if len(sys.argv) > 2 else 12345
     min_clientes = int(sys.argv[3]) if len(sys.argv) > 3 else 2
     max_clientes = int(sys.argv[4]) if len(sys.argv) > 4 else 10
-    tempo_espera = int(sys.argv[5]) if len(sys.argv) > 5 else 30
+    tempo_espera = int(sys.argv[5]) if len(sys.argv) > 5 else 10
     
     servidor = ServidorBingo(host=host, porta=porta, 
                            min_clientes=min_clientes,
@@ -286,9 +258,9 @@ def main():
     try:
         servidor.aguardar_conexoes()
     except KeyboardInterrupt:
-        print("\nEncerrando o servidor...")
+        print("\nEncerrando o servidor por interrupção do teclado...")
     finally:
-        servidor.servidor.close()
+        servidor.encerrar_servidor()
 
 if __name__ == "__main__":
     main()
