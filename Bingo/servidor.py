@@ -70,6 +70,16 @@ class ServidorBingo:
                     partidas_disponiveis.append(codigo)
             return partidas_disponiveis
     
+    def verificar_partida_existe(self, codigo_partida):
+        """
+        Verifica se uma partida específica existe, independente se é pública ou privada
+        
+        :param codigo_partida: Código da partida a ser verificada
+        :return: True se a partida existe, False caso contrário
+        """
+        with self.lock_partidas:
+            return codigo_partida in self.partidas and not self.partidas[codigo_partida].jogo_em_andamento
+    
     def criar_ou_obter_partida(self, codigo_partida, publica=True):
         """
         Cria uma nova partida ou retorna uma existente com o código fornecido
@@ -171,6 +181,15 @@ class ServidorBingo:
                 except:
                     cliente_socket.close()
                     return
+            # Verifica se o cliente solicitou verificar uma partida específica
+            elif nome_jogador.startswith("VERIFICAR_PARTIDA:"):
+                codigo_partida = nome_jogador.split(":", 1)[1]
+                if self.verificar_partida_existe(codigo_partida):
+                    cliente_socket.send("PARTIDA_EXISTE".encode('utf-8'))
+                else:
+                    cliente_socket.send("PARTIDA_NAO_EXISTE".encode('utf-8'))
+                cliente_socket.close()
+                return
             
             # Recebe o código da partida e informação sobre pública/privada
             codigo_partida_info = cliente_socket.recv(1024).decode('utf-8')

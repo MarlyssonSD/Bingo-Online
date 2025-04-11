@@ -81,11 +81,29 @@ class ClienteBingo:
         """
         Verifica se uma partida específica existe no servidor
         """
-        # Lista todas as partidas públicas primeiro
-        partidas_disponiveis = self.listar_partidas_publicas()
-        
-        # Verifica se o código está na lista
-        return codigo_partida in partidas_disponiveis
+        try:
+            socket_temp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket_temp.connect((self.host, self.porta))
+            
+            # Recebe a mensagem de conexão bem-sucedida
+            resposta = socket_temp.recv(1024).decode('utf-8')
+            if resposta != 'CONECTADO':
+                print("Erro ao conectar ao servidor para verificar partida")
+                socket_temp.close()
+                return False
+            
+            # Envia comando especial para verificar partida
+            socket_temp.send(f'VERIFICAR_PARTIDA:{codigo_partida}'.encode('utf-8'))
+            
+            # Recebe a resposta
+            resposta = socket_temp.recv(1024).decode('utf-8')
+            socket_temp.send('SAIR'.encode('utf-8'))
+            socket_temp.close()
+            
+            return resposta == 'PARTIDA_EXISTE'
+        except Exception as e:
+            print(f"Erro ao verificar partida: {e}")
+            return False
     
     def exibir_menu_principal(self):
         """
