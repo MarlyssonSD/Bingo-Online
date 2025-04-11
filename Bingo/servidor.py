@@ -105,8 +105,36 @@ class ServidorBingo:
             # Cria ou obtém a partida solicitada
             codigo_partida, partida = self.criar_ou_obter_partida(codigo_partida_recebido)
             
+            # Envia o código real da partida para o cliente
+            try:
+                cliente_socket.send(codigo_partida.encode('utf-8'))
+                time.sleep(0.5)
+            except:
+                print(f"Erro ao enviar código da partida para o cliente {nome_jogador}")
+                cliente_socket.close()
+                return
+            
             # Adiciona o cliente à partida
             resultado = partida.adicionar_cliente(cliente_socket, nome_jogador)
+            
+            # Se o jogo já estiver em andamento, notifica o cliente e fecha a conexão
+            if resultado == "jogo_em_andamento":
+                try:
+                    cliente_socket.send("jogo_em_andamento".encode('utf-8'))
+                    time.sleep(0.5)
+                except:
+                    pass
+                cliente_socket.close()
+                return
+            
+            # Envia confirmação de que o jogador pode entrar na partida
+            try:
+                cliente_socket.send("pode_entrar".encode('utf-8'))
+                time.sleep(0.5)
+            except:
+                print(f"Erro ao enviar confirmação para o cliente {nome_jogador}")
+                partida.remover_cliente(cliente_socket)
+                return
             
             # Aguarda confirmação "PRONTO" do cliente
             try:

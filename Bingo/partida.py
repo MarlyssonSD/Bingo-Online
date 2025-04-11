@@ -43,6 +43,11 @@ class PartidaBingo:
         Adiciona um cliente à partida
         """
         with self.lock:
+            # Verifica se o jogo já começou
+            if self.jogo_em_andamento:
+                print(f"\nJogo já em andamento. {nome_jogador} não pode entrar na partida {self.codigo_partida}.")
+                return "jogo_em_andamento"
+                
             if cliente_socket not in self.clientes:
                 self.clientes.append(cliente_socket)
                 self.clientes_prontos.append(cliente_socket)
