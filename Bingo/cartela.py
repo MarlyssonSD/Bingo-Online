@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-class CarteldeBingo:
+class CartelaBingo:
     def __init__(self):
         # Definindo os intervalos para cada coluna
         self.intervalos = {
@@ -56,28 +56,95 @@ class CarteldeBingo:
         
         :return: True se há bingo, False caso contrário
         """
-         # Cria uma cópia para não modificar a original
-        verificacao = self.cartela_marcacao.copy()  
+        # Cria uma cópia para não modificar a original
+        verificacao = self.cartela_marcacao.copy()
         
         # Ignora o centro (já que ele começa marcado)
-        verificacao[2, 2] = True  
+        verificacao[2, 2] = True
         
         # Retorna True apenas se TODAS as posições forem True
         return np.all(verificacao)
-        
     
     def imprimir_cartela(self):
         """
         Imprime a cartela de números e a matriz de marcação
         """
-        print("Cartela de Números:")
+        print("\nCartela de Números:")
         print(self.cartela_numeros)
         print("\nCartela de Marcação:")
         print(self.cartela_marcacao)
 
-# Exemplo de uso
+class GerenciadorCartelas:
+    def __init__(self):
+        # Lista de cartelas do jogador (inicialmente uma)
+        self.cartelas = [CartelaBingo()]
+        
+        # Flag para controle de bingo
+        self.bingo_feito = False
+        
+        # Lista de números sorteados
+        self.numeros_sorteados = []
+    
+    def adicionar_cartela(self):
+        """
+        Adiciona uma nova cartela ao jogador, se ele ainda não tiver 3
+        """
+        if len(self.cartelas) < 3:
+            nova_cartela = CartelaBingo()
+            self.cartelas.append(nova_cartela)
+            print("\n--- Nova cartela adicionada! ---")
+            nova_cartela.imprimir_cartela()
+            return True
+        else:
+            print("\n--- Você já tem o número máximo de cartelas (3)! ---")
+            return False
+    
+    def marcar_numero_em_todas_cartelas(self, numero):
+        """
+        Marca um número em todas as cartelas do jogador
+        
+        :param numero: Número a ser marcado
+        :return: True se o número foi marcado em pelo menos uma cartela, False caso contrário
+        """
+        marcado = False
+        for cartela in self.cartelas:
+            if cartela.marcar_numero(numero):
+                marcado = True
+        return marcado
+    
+    def verificar_bingo_em_todas_cartelas(self):
+        """
+        Verifica se há bingo em alguma das cartelas do jogador
+        
+        :return: True se há bingo em pelo menos uma cartela, False caso contrário
+        """
+        for i, cartela in enumerate(self.cartelas, 1):
+            if cartela.verificar_bingo():
+                return i
+        return None
+    
+    def imprimir_todas_cartelas(self):
+        """
+        Imprime todas as cartelas do jogador
+        """
+        for i, cartela in enumerate(self.cartelas, 1):
+            print(f"\n--- Cartela {i} ---")
+            cartela.imprimir_cartela()
+    
+    def adicionar_numero_sorteado(self, numero):
+        """
+        Adiciona um número à lista de números sorteados
+        """
+        self.numeros_sorteados.append(numero)
+    
+    def get_numeros_sorteados(self):
+        """
+        Retorna a lista de números sorteados
+        """
+        return self.numeros_sorteados
+
 if __name__ == "__main__":
-    cartela = CarteldeBingo()
+    cartela = CartelaBingo()
     cartela.imprimir_cartela()
     
     # Simulando marcação de alguns números
