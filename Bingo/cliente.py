@@ -193,14 +193,33 @@ class ClienteBingo:
                     
                     self.cliente.send((codigo_partida.strip() or "NOVOPARTIDA").encode('utf-8'))
                     
-                    self.codigo_partida = codigo_partida or "NOVOPARTIDA" 
+                    # Recebe o código real da partida do servidor
+                    codigo_real = self.cliente.recv(1024).decode('utf-8')
+                    self.codigo_partida = codigo_real
                     print(f"Você está na partida com código: {self.codigo_partida}")
                     
+                    # Recebe a resposta do servidor sobre a entrada na partida
+                    resposta_partida = self.cliente.recv(1024).decode('utf-8')
+                    if resposta_partida == "jogo_em_andamento":
+                        print("\n--- ATENÇÃO ---")
+                        print("Esta partida já está em andamento e não é possível entrar agora.")
+                        print("Por favor, tente entrar em outra partida ou crie uma nova.")
+                        self.fechar_conexao()
+                        return False
+                    
+                    if resposta_partida != "pode_entrar":
+                        print(f"\nResposta inesperada do servidor: {resposta_partida}")
+                        self.fechar_conexao()
+                        return False
+                    
+                    # Se chegou aqui, pode entrar na partida
                     self.imprimir_todas_cartelas()
                     self.menu_interativo()
                     
+                    # Envia confirmação de pronto
                     self.cliente.send('PRONTO'.encode('utf-8'))
                     
+                    # Inicia a thread para receber números
                     self.rodando = True
                     threading.Thread(target=self.receber_numeros).start()
                     return True
