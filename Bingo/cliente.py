@@ -238,7 +238,12 @@ class ClienteBingo:
                     vencedor = dados.split(':')[1]
                     print("\n--- RESULTADO FINAL ---")
                     print("Números sorteados:", self.numeros_sorteados)
-                    print(f"\n--- {vencedor} fez BINGO! Jogo encerrado! ---")
+                    if vencedor == self.nome_jogador:
+                        print(f"\n--- BINGO! Você venceu com a cartela {self.verificar_bingo_em_todas_cartelas()}! ---")
+                        print("Parabéns! Você foi o primeiro a completar sua cartela!")
+                    else:
+                        print(f"\n--- BINGO! O jogador {vencedor} venceu a partida! ---")
+                        print("Infelizmente você não foi o primeiro a completar sua cartela.")
                     self.rodando = False
                     break
                 
@@ -291,6 +296,7 @@ class ClienteBingo:
                 break
         
         print("\nDesconectado do servidor.")
+        self.fechar_conexao()
     
     def fechar_conexao(self):
         """

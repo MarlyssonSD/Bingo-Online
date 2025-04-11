@@ -127,7 +127,7 @@ class ServidorBingo:
                 partida.iniciar_jogo()
             
             # Loop para receber mensagens do cliente durante o jogo
-            while partida.jogo_em_andamento:
+            while not partida.partida_encerrada:
                 try:
                     mensagem = cliente_socket.recv(1024).decode('utf-8')
                     if not mensagem:  # Cliente desconectou
@@ -137,15 +137,17 @@ class ServidorBingo:
                         break
                     
                     if mensagem == 'BINGO':
+                        print(f"\nCliente {nome_jogador} informou BINGO!")
                         if partida.verificar_bingo(cliente_socket):
                             # Remover a partida do dicionário quando terminar
                             self.remover_partida(codigo_partida, "Finalizada: jogador fez bingo")
                             break
                 except Exception as e:
                     print(f"Erro ao receber mensagem do cliente {nome_jogador}: {e}")
-                    resultado = partida.remover_cliente(cliente_socket)
-                    if resultado == "partida_cancelada":
-                        self.remover_partida(codigo_partida, "Cancelada após erro de comunicação")
+                    if not partida.partida_encerrada:
+                        resultado = partida.remover_cliente(cliente_socket)
+                        if resultado == "partida_cancelada":
+                            self.remover_partida(codigo_partida, "Cancelada após erro de comunicação")
                     break
             
             # Verifica se a partida terminou e deve ser removida
