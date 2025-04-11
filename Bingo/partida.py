@@ -21,7 +21,7 @@ class PartidaBingo:
         self.numeros_sorteados = []
         
         # Tempo entre os sorteios em segundos
-        self.tempo_para_sorteio = 0.2 #Tempo para testes
+        self.tempo_para_sorteio = 3 #Tempo para testes
         # self.tempo_para_sorteio = 3 #Tempo de espera entre os sorteios 
          
         
@@ -42,17 +42,16 @@ class PartidaBingo:
         with self.lock:
             if cliente_socket not in self.clientes:
                 self.clientes.append(cliente_socket)
-            if cliente_socket not in self.clientes_prontos:
                 self.clientes_prontos.append(cliente_socket)
                 self.nomes_jogadores[cliente_socket] = nome_jogador
                 print(f"\nJogador '{nome_jogador}' conectado à partida {self.codigo_partida}. Total: {len(self.clientes_prontos)}/{self.max_clientes}")
             
-            # Retorna True se a partida está pronta para iniciar (atingiu o máximo de jogadores)
+            # Verifica se atingiu o máximo de jogadores
             if len(self.clientes_prontos) >= self.max_clientes and not self.sorteio_iniciado:
                 print(f"\nNúmero máximo de jogadores atingido na partida {self.codigo_partida}. Iniciando o jogo...")
                 return True
             
-            # Se atingiu o mínimo de jogadores, pode iniciar o temporizador
+            # Se atingiu o mínimo, pode iniciar o temporizador
             if len(self.clientes_prontos) >= self.min_clientes and not self.sorteio_iniciado:
                 print(f"\nMínimo de jogadores atingido na partida {self.codigo_partida}. Aguardando mais jogadores ou início da partida...")
                 return "iniciar_temporizador"

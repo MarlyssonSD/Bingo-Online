@@ -172,6 +172,7 @@ class ClienteBingo:
             else:
                 print("Opção inválida!")
     
+
     def conectar(self, codigo_partida=None):
         tentativas = 0
         while tentativas < self.max_tentativas:
@@ -190,14 +191,9 @@ class ClienteBingo:
                         print("\nVocê pode entrar em uma partida existente ou criar uma nova.")
                         codigo_partida = input("Digite o código da partida (deixe em branco para criar automaticamente): ")
                     
-                    if codigo_partida.strip() == "":
-                        codigo_partida = "NOVOPARTIDA"
+                    self.cliente.send((codigo_partida.strip() or "NOVOPARTIDA").encode('utf-8'))
                     
-                    # Envia o código da partida para o servidor
-                    self.cliente.send(codigo_partida.encode('utf-8'))
-                    
-                    # Aqui, em vez de esperar uma resposta que não vem, definimos o código enviado
-                    self.codigo_partida = codigo_partida
+                    self.codigo_partida = codigo_partida or "NOVOPARTIDA" 
                     print(f"Você está na partida com código: {self.codigo_partida}")
                     
                     self.imprimir_todas_cartelas()
@@ -210,16 +206,15 @@ class ClienteBingo:
                     return True
                 else:
                     print(f"Resposta inesperada do servidor: {resposta}")
-                    self.fechar_conexao()
-                    tentativas += 1
-                
             except Exception as e:
                 print(f"Tentativa {tentativas + 1} falhou: {e}")
-                tentativas += 1
-                if tentativas < self.max_tentativas:
-                    print("Tentando reconectar em 5 segundos...")
-                    time.sleep(5)
-                self.fechar_conexao()
+                
+            # Tratamento comum de falha (tanto para resposta inesperada quanto para exceção)
+            tentativas += 1
+            if tentativas < self.max_tentativas:
+                print("Tentando reconectar em 5 segundos...")
+                time.sleep(5)
+            self.fechar_conexao()
         
         print("Não foi possível conectar ao servidor após várias tentativas.")
         return False
