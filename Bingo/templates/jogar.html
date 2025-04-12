@@ -130,10 +130,20 @@
                 data.partidas.forEach(partida => {
                     const div = document.createElement('div');
                     div.className = 'partida-item';
+                    
+                    // Determina o status a ser exibido
+                    let statusText = '';
+                    if (partida.estado === 'contagem') {
+                        statusText = `Iniciando em: ${partida.contagem}s`;
+                    } else {
+                        statusText = 'Aguardando jogadores';
+                    }
+                    
                     div.innerHTML = `
                         <div class="partida-info">
                             <strong>Código:</strong> ${partida.codigo}<br>
-                            <strong>Jogadores:</strong> ${partida.jogadores.length}
+                            <strong>Jogadores:</strong> ${partida.jogadores.length}<br>
+                            <strong>Status:</strong> ${statusText}
                         </div>
                         <button onclick="entrarPartidaCodigo('${partida.codigo}')">Entrar</button>
                     `;

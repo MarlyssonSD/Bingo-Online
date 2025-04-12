@@ -412,10 +412,13 @@ def enviar_partidas(data):
     partidas_disponiveis = []
     
     for codigo, partida in partidas_sala_2.items():
-        if partida['estado'] == 'aguardando':
+        # Incluir partidas tanto em aguardando quanto em contagem
+        if partida['estado'] in ['aguardando', 'contagem']:
             partidas_disponiveis.append({
                 'codigo': codigo,
-                'jogadores': partida['jogadores']
+                'jogadores': partida['jogadores'],
+                'estado': partida['estado'],
+                'contagem': partida.get('contagem', None)
             })
     
     emit('atualizar_partidas', {'partidas': partidas_disponiveis})
