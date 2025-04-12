@@ -79,27 +79,16 @@
             transform: scale(1);
         }
 
-        .numero.erro {
-            background-color: #ff4444;
+        .numero.centro {
+            background-color: #4CAF50;
             color: white;
-            animation: shake 0.5s;
+            font-weight: bold;
+            cursor: not-allowed;
         }
 
-        .numero.faltando {
-            border: 2px solid #ff4444;
-            animation: pulse-border 1s infinite;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        @keyframes pulse-border {
-            0% { border-color: #ff4444; }
-            50% { border-color: #ff8888; }
-            100% { border-color: #ff4444; }
+        .numero.centro:hover {
+            background-color: #4CAF50;
+            transform: none;
         }
 
         .validation-message {
@@ -108,12 +97,16 @@
             border-radius: 5px;
             display: none;
             font-weight: bold;
+            text-align: center;
         }
 
         .validation-errors {
             margin-top: 10px;
             font-size: 14px;
-            color: #d32f2f;
+            color: white;
+            background-color: rgba(0,0,0,0.1);
+            padding: 5px;
+            border-radius: 3px;
         }
         .numeros-sorteados {
             margin-top: 20px;
@@ -265,6 +258,8 @@
         let estadoJogo = 'aguardando';
         let numerosSorteados = new Set();
         let cartelasJogador = [];
+        let jogoIniciado = false;
+        let bingoVerificado = false;
         
         // Solicita as cartelas ao conectar
         socket.on('connect', () => {
@@ -362,13 +357,18 @@
                     for (let j = 0; j < 5; j++) {
                         const numero = cartela.numeros[i][j];
                         const marcado = cartela.marcacao[i][j];
+                        const isCentro = i === 2 && j === 2;
                         
                         const numeroDiv = document.createElement('div');
-                        numeroDiv.className = `numero ${marcado ? 'marcado' : ''}`;
-                        numeroDiv.textContent = numero || '';
+                        numeroDiv.className = `numero ${marcado ? 'marcado' : ''} ${isCentro ? 'centro marcado' : ''}`;
+                        numeroDiv.textContent = numero || '0';
                         numeroDiv.dataset.row = i;
                         numeroDiv.dataset.col = j;
-                        numeroDiv.onclick = () => toggleMarcacao(numeroDiv, cartelaIndex, i, j, numero);
+                        
+                        if (!isCentro) {
+                            numeroDiv.onclick = () => toggleMarcacao(numeroDiv, cartelaIndex, i, j, numero);
+                        }
+                        
                         body.appendChild(numeroDiv);
                     }
                 }
@@ -378,81 +378,12 @@
                 container.appendChild(cartelaDiv);
             });
         });
-        
+
         function toggleMarcacao(elemento, cartelaIndex, row, col, numero) {
             if (estadoJogo !== 'em_andamento') return;
             
             const estaMarcado = elemento.classList.toggle('marcado');
             cartelasJogador[cartelaIndex].marcacao[row][col] = estaMarcado;
-        }
-
-        function verificarBingo() {
-            const validationMessage = document.getElementById('validation-message');
-            let erros = {
-                numerosNaoSorteados: [],
-                numerosSorteadosNaoMarcados: []
-            };
-            let bingoValido = true;
-
-            // Remove marcações de erro anteriores
-            document.querySelectorAll('.numero.erro, .numero.faltando').forEach(el => {
-                el.classList.remove('erro', 'faltando');
-            });
-
-            // Verifica cada cartela do jogador
-            for (let cartelaIndex = 0; cartelaIndex < cartelasJogador.length; cartelaIndex++) {
-                const cartela = cartelasJogador[cartelaIndex];
-                const cartelaElement = document.querySelector(`[data-cartela-index="${cartelaIndex}"]`);
-
-                // Verifica números marcados incorretamente
-                for (let i = 0; i < 5; i++) {
-                    for (let j = 0; j < 5; j++) {
-                        const numero = cartela.numeros[i][j];
-                        const estaMarcado = cartela.marcacao[i][j];
-                        const numeroElement = cartelaElement.querySelector(`[data-row="${i}"][data-col="${j}"]`);
-
-                        if (estaMarcado && !numerosSorteados.has(numero)) {
-                            erros.numerosNaoSorteados.push(numero);
-                            numeroElement.classList.add('erro');
-                            bingoValido = false;
-                        }
-                        
-                        if (!estaMarcado && numerosSorteados.has(numero)) {
-                            erros.numerosSorteadosNaoMarcados.push(numero);
-                            numeroElement.classList.add('faltando');
-                            bingoValido = false;
-                        }
-                    }
-                }
-            }
-
-            validationMessage.style.display = 'block';
-            
-            if (bingoValido) {
-                console.log('Bingo válido! Gritando BINGO!');
-                validationMessage.className = 'validation-message success';
-                validationMessage.innerHTML = 'Verificando seu BINGO...';
-                gritarBingo();
-            } else {
-                let mensagemErro = 'Bingo inválido!';
-                if (erros.numerosNaoSorteados.length > 0) {
-                    mensagemErro += `<div class="validation-errors">Números marcados que ainda não foram sorteados: ${erros.numerosNaoSorteados.join(', ')}</div>`;
-                }
-                if (erros.numerosSorteadosNaoMarcados.length > 0) {
-                    mensagemErro += `<div class="validation-errors">Números sorteados que não foram marcados: ${erros.numerosSorteadosNaoMarcados.join(', ')}</div>`;
-                }
-                
-                validationMessage.className = 'validation-message error';
-                validationMessage.innerHTML = mensagemErro;
-                
-                setTimeout(() => {
-                    validationMessage.style.display = 'none';
-                    // Remove as marcações de erro após 5 segundos
-                    document.querySelectorAll('.numero.erro, .numero.faltando').forEach(el => {
-                        el.classList.remove('erro', 'faltando');
-                    });
-                }, 5000);
-            }
         }
         
         socket.on('numero_sorteado', (data) => {
@@ -583,6 +514,95 @@
         function iniciarJogo() {
             const codigo = document.getElementById('codigo').value;
             socket.emit('iniciar_jogo', { codigo: codigo });
+        }
+
+        function verificarBingoAutomatico() {
+            // Implemente a lógica para verificar Bingo automaticamente
+        }
+
+        function verificarBingo() {
+            const validationMessage = document.getElementById('validation-message');
+            let bingoValido = true;
+            let erros = {
+                numerosNaoSorteados: [],
+                numerosFaltando: []
+            };
+            let numerosNecessarios = 0;
+            let numerosMarcados = 0;
+
+            // Verifica cada cartela do jogador
+            for (let cartelaIndex = 0; cartelaIndex < cartelasJogador.length; cartelaIndex++) {
+                const cartela = cartelasJogador[cartelaIndex];
+                
+                // Verifica cada posição da cartela
+                for (let i = 0; i < 5; i++) {
+                    for (let j = 0; j < 5; j++) {
+                        const numero = cartela.numeros[i][j];
+                        const estaMarcado = cartela.marcacao[i][j];
+                        
+                        // Pula a verificação do centro (posição [2][2])
+                        if (i === 2 && j === 2) continue;
+
+                        numerosNecessarios++;
+                        
+                        if (estaMarcado) {
+                            numerosMarcados++;
+                            // Se o número está marcado, verifica se foi sorteado
+                            if (!numerosSorteados.has(numero)) {
+                                erros.numerosNaoSorteados.push(numero);
+                                bingoValido = false;
+                            }
+                        } else {
+                            // Se o número não está marcado, verifica se deveria estar
+                            if (numerosSorteados.has(numero)) {
+                                erros.numerosFaltando.push(numero);
+                                bingoValido = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Verifica se todos os números necessários foram marcados
+            if (numerosMarcados < numerosNecessarios) {
+                bingoValido = false;
+                if (erros.numerosFaltando.length === 0) {
+                    erros.numerosFaltando = ['Você precisa marcar todos os números da cartela'];
+                }
+            }
+
+            validationMessage.style.display = 'block';
+            
+            if (bingoValido) {
+                console.log('Bingo válido! Gritando BINGO!');
+                validationMessage.className = 'validation-message success';
+                validationMessage.style.backgroundColor = '#4CAF50';
+                validationMessage.style.color = 'white';
+                validationMessage.innerHTML = 'BINGO VÁLIDO! Parabéns!';
+                gritarBingo();
+            } else {
+                let mensagemErro = '<strong>Bingo inválido!</strong><br>';
+                if (erros.numerosNaoSorteados.length > 0) {
+                    mensagemErro += `<div class="validation-errors">Você marcou números que ainda não foram sorteados: ${erros.numerosNaoSorteados.join(', ')}</div>`;
+                }
+                if (erros.numerosFaltando.length > 0) {
+                    if (typeof erros.numerosFaltando[0] === 'string' && erros.numerosFaltando[0].includes('precisa marcar')) {
+                        mensagemErro += `<div class="validation-errors">${erros.numerosFaltando[0]}</div>`;
+                    } else {
+                        mensagemErro += `<div class="validation-errors">Faltou marcar os números: ${erros.numerosFaltando.join(', ')}</div>`;
+                    }
+                }
+                
+                validationMessage.className = 'validation-message error';
+                validationMessage.style.backgroundColor = '#ff4444';
+                validationMessage.style.color = 'white';
+                validationMessage.innerHTML = mensagemErro;
+                
+                // Esconde a mensagem de erro após 5 segundos
+                setTimeout(() => {
+                    validationMessage.style.display = 'none';
+                }, 5000);
+            }
         }
     </script>
 </body>

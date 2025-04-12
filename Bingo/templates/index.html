@@ -11,45 +11,97 @@
             margin: 0 auto;
             padding: 20px;
             text-align: center;
+            background-color: #f0f0f0;
         }
         h1 {
             color: #333;
+            font-size: 3em;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
         .form-container {
-            background-color: #f5f5f5;
-            padding: 20px;
-            border-radius: 5px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
             margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
         }
         input[type="text"] {
-            padding: 10px;
-            width: 300px;
-            margin: 10px 0;
+            padding: 12px;
+            width: 100%;
+            margin: 15px 0;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            box-sizing: border-box;
         }
-        button {
+        .sala-button {
             background-color: #4CAF50;
             color: white;
-            padding: 10px 20px;
+            padding: 15px 30px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-bottom: 10px;
         }
-        button:hover {
+        .sala-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        .sala-button-1 {
+            background-color: #4CAF50;
+        }
+        .sala-button-1:hover {
             background-color: #45a049;
+        }
+        .sala-button-2 {
+            background-color: #2196F3;
+        }
+        .sala-button-2:hover {
+            background-color: #1976D2;
+        }
+        .form-sala-1 {
+            display: none;
+        }
+        .form-sala-2 {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>Bingo Online</h1>
+    <h1>Bingo!</h1>
     <div class="form-container">
-        <form action="{{ url_for('jogar') }}" method="POST">
+        <button class="sala-button sala-button-1" onclick="mostrarFormulario('1')">Sala Particular</button>
+        <button class="sala-button sala-button-2" onclick="mostrarFormulario('2')">Sala Pública</button>
+        
+        <form id="form-sala-1" class="form-sala-1" action="{{ url_for('jogar') }}" method="POST">
             <h2>Digite seu nome para começar</h2>
             <input type="text" name="nome_jogador" placeholder="Seu nome" required>
-            <br>
-            <button type="submit">Entrar</button>
+            <input type="hidden" name="tipo_sala" value="1">
+            <button type="submit" class="sala-button sala-button-1">Entrar</button>
+        </form>
+
+        <form id="form-sala-2" class="form-sala-2" action="{{ url_for('jogar') }}" method="POST">
+            <h2>Digite seu nome para começar</h2>
+            <input type="text" name="nome_jogador" placeholder="Seu nome" required>
+            <input type="hidden" name="tipo_sala" value="2">
+            <button type="submit" class="sala-button sala-button-2">Entrar</button>
         </form>
     </div>
+
+    <script>
+        function mostrarFormulario(tipo) {
+            document.getElementById('form-sala-1').style.display = 'none';
+            document.getElementById('form-sala-2').style.display = 'none';
+            document.getElementById('form-sala-' + tipo).style.display = 'block';
+        }
+    </script>
 </body>
 </html> 
