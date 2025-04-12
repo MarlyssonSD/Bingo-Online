@@ -1,3 +1,5 @@
+# python app.py apenas
+
 import eventlet
 eventlet.monkey_patch()
 
