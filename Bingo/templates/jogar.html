@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Online - Jogar</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .options-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        .option {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            width: 45%;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 200px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #codigo-partida {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+            display: none;
+        }
+        #mensagem {
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bem-vindo, {{ nome_jogador }}!</h1>
+    <div id="mensagem"></div>
+    <div id="codigo-partida"></div>
+    
+    <div class="options-container">
+        <div class="option">
+            <h2>Criar Nova Partida</h2>
+            <button onclick="criarPartida()">Criar Partida</button>
+        </div>
+        
+        <div class="option">
+            <h2>Entrar em uma Partida</h2>
+            <input type="text" id="codigo-entrada" placeholder="Código da partida">
+            <br>
+            <button onclick="entrarPartida()">Entrar</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Conectado ao servidor');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Desconectado do servidor');
+        });
+        
+        socket.on('partida_criada', (data) => {
+            document.getElementById('codigo-partida').style.display = 'block';
+            document.getElementById('codigo-partida').textContent = `Código da partida: ${data.codigo}`;
+            window.location.href = `/partida/${data.codigo}`;
+        });
+        
+        socket.on('erro', (data) => {
+            document.getElementById('mensagem').textContent = data.mensagem;
+            setTimeout(() => {
+                document.getElementById('mensagem').textContent = '';
+            }, 3000);
+        });
+        
+        socket.on('redirecionar', (data) => {
+            window.location.href = `/partida/${data.codigo}`;
+        });
+        
+        function criarPartida() {
+            socket.emit('criar_partida');
+        }
+        
+        function entrarPartida() {
+            const codigo = document.getElementById('codigo-entrada').value.trim().toUpperCase();
+            if (codigo) {
+                socket.emit('entrar_partida', { codigo: codigo });
+            } else {
+                document.getElementById('mensagem').textContent = 'Por favor, digite o código da partida';
+                setTimeout(() => {
+                    document.getElementById('mensagem').textContent = '';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html> 
