@@ -15,19 +15,22 @@ app.config['SECRET_KEY'] = 'bingo_secret_key'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 # Dicionário para armazenar as partidas ativas
-partidas = {}
+partidas = {}  # Partidas da Sala Particular
+partidas_sala_2 = {}  # Partidas da Sala Pública
 
 # Dicionário para armazenar os gerenciadores de cartelas dos jogadores
 gerenciadores_cartelas = {}
 
-def iniciar_jogo(codigo):
+def iniciar_jogo(codigo, tipo_sala='1'):
     """Função auxiliar para iniciar o jogo"""
     print(f"Iniciando jogo na sala {codigo}")
-    if codigo not in partidas:
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
         print(f"Partida {codigo} não existe mais")
         return
         
-    partida = partidas[codigo]
+    partida = partidas_dict[codigo]
     
     # Muda o estado para em_andamento e limpa os números sorteados
     partida['estado'] = 'em_andamento'
@@ -42,12 +45,14 @@ def iniciar_jogo(codigo):
     }, room=codigo)
     
     # Inicia o sorteio de números em uma nova thread
-    eventlet.spawn(sortear_numeros, codigo)
+    eventlet.spawn(sortear_numeros, codigo, tipo_sala)
 
-def sortear_numeros(codigo):
+def sortear_numeros(codigo, tipo_sala='1'):
     """Função auxiliar para sortear números"""
     print(f"Iniciando sorteio de números na sala {codigo}")
-    if codigo not in partidas:
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
         print(f"Partida {codigo} não existe mais")
         return
         
@@ -56,16 +61,16 @@ def sortear_numeros(codigo):
     
     for numero in numeros_disponiveis:
         # Verifica se a partida ainda existe e está em andamento
-        if codigo not in partidas or partidas[codigo]['estado'] != 'em_andamento':
+        if codigo not in partidas_dict or partidas_dict[codigo]['estado'] != 'em_andamento':
             print(f"Partida {codigo} finalizada ou não existe mais")
             break
         
         print(f"Sorteando número {numero} na sala {codigo}")
-        partidas[codigo]['numeros_sorteados'].append(numero)
+        partidas_dict[codigo]['numeros_sorteados'].append(numero)
         socketio.emit('numero_sorteado', {'numero': numero}, room=codigo)
         
         # Verifica se algum jogador fez bingo
-        for jogador in partidas[codigo]['jogadores']:
+        for jogador in partidas_dict[codigo]['jogadores']:
             if jogador in gerenciadores_cartelas:
                 gerenciador = gerenciadores_cartelas[jogador]
                 gerenciador.marcar_numero_em_todas_cartelas(numero)
@@ -73,22 +78,23 @@ def sortear_numeros(codigo):
                 
                 if cartela_bingo:
                     print(f"BINGO! Jogador {jogador} venceu na sala {codigo}")
-                    partidas[codigo]['estado'] = 'finalizado'
-                    partidas[codigo]['vencedor'] = jogador
+                    partidas_dict[codigo]['estado'] = 'finalizado'
+                    partidas_dict[codigo]['vencedor'] = jogador
                     socketio.emit('bingo', {'vencedor': jogador}, room=codigo)
                     return
         
         eventlet.sleep(3)  # Espera 3 segundos entre os sorteios
 
-def contagem_regressiva(codigo):
+def contagem_regressiva(codigo, tipo_sala='1'):
     """Função auxiliar para contagem regressiva"""
     print(f"Iniciando contagem regressiva na sala {codigo}")
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
     
     for i in range(30, -1, -1):
-        if codigo not in partidas:
+        if codigo not in partidas_dict:
             print(f"Partida {codigo} não existe mais")
             return
-        if partidas[codigo]['estado'] != 'contagem':
+        if partidas_dict[codigo]['estado'] != 'contagem':
             print(f"Partida {codigo} não está mais em contagem")
             return
             
@@ -97,7 +103,7 @@ def contagem_regressiva(codigo):
         
         if i == 0:
             print(f"Contagem finalizada, iniciando jogo na sala {codigo}")
-            iniciar_jogo(codigo)  # Chama a função que inicia o jogo
+            iniciar_jogo(codigo, tipo_sala)  # Chama a função que inicia o jogo
             return
         
         eventlet.sleep(1)
@@ -110,11 +116,13 @@ def index():
 def jogar():
     if request.method == 'POST':
         nome_jogador = request.form.get('nome_jogador')
+        tipo_sala = request.form.get('tipo_sala', '1')  # '1' para Sala Particular, '2' para Sala Pública
         if not nome_jogador:
             return redirect(url_for('index'))
         
         session['nome_jogador'] = nome_jogador
-        return render_template('jogar.html', nome_jogador=nome_jogador)
+        session['tipo_sala'] = tipo_sala
+        return render_template('jogar.html', nome_jogador=nome_jogador, tipo_sala=tipo_sala)
     
     return redirect(url_for('index'))
 
@@ -123,7 +131,10 @@ def partida(codigo):
     if 'nome_jogador' not in session:
         return redirect(url_for('index'))
     
-    if codigo not in partidas:
+    tipo_sala = session.get('tipo_sala', '1')
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
         return redirect(url_for('jogar'))
     
     return render_template('partida.html', 
@@ -135,8 +146,11 @@ def handle_connect():
     print(f"Cliente conectado: {request.sid}")
     # Se o jogador já estava em uma partida, reconecta à sala
     nome_jogador = session.get('nome_jogador')
+    tipo_sala = session.get('tipo_sala', '1')
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
     if nome_jogador:
-        for codigo, partida in partidas.items():
+        for codigo, partida in partidas_dict.items():
             if nome_jogador in partida['jogadores']:
                 join_room(codigo)
                 print(f"Reconectando {nome_jogador} à sala {codigo}")
@@ -155,12 +169,16 @@ def handle_disconnect():
 @socketio.on('criar_partida')
 def criar_partida():
     nome_jogador = session.get('nome_jogador')
+    tipo_sala = session.get('tipo_sala', '1')
+    
     if not nome_jogador:
         emit('erro', {'mensagem': 'Nome do jogador não encontrado'})
         return
     
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
     # Verifica se o jogador já está em alguma partida
-    for codigo_partida, partida in partidas.items():
+    for codigo_partida, partida in partidas_dict.items():
         if nome_jogador in partida['jogadores']:
             if partida['estado'] == 'aguardando':
                 join_room(codigo_partida)
@@ -173,13 +191,13 @@ def criar_partida():
     
     # Gera um código único para a partida
     codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    while codigo in partidas:
+    while codigo in partidas_dict:
         codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     
     print(f"Criando nova partida com código {codigo}")
     
     # Inicializa a partida
-    partidas[codigo] = {
+    partidas_dict[codigo] = {
         'jogadores': [nome_jogador],
         'estado': 'aguardando',
         'numeros_sorteados': [],
@@ -199,16 +217,19 @@ def criar_partida():
 def entrar_partida(data):
     codigo = data.get('codigo')
     nome_jogador = session.get('nome_jogador')
+    tipo_sala = session.get('tipo_sala', '1')
     
     if not nome_jogador:
         emit('erro', {'mensagem': 'Nome do jogador não encontrado'})
         return
     
-    if codigo not in partidas:
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
         emit('erro', {'mensagem': 'Partida não encontrada'})
         return
     
-    partida = partidas[codigo]
+    partida = partidas_dict[codigo]
     
     # Verifica se o jogador já está na partida
     if nome_jogador in partida['jogadores']:
@@ -246,7 +267,7 @@ def entrar_partida(data):
     if len(partida['jogadores']) >= 2 and partida['estado'] == 'aguardando':
         print(f"Dois ou mais jogadores conectados na sala {codigo}, iniciando contagem")
         partida['estado'] = 'contagem'
-        eventlet.spawn(contagem_regressiva, codigo)
+        eventlet.spawn(contagem_regressiva, codigo, tipo_sala)
 
 @socketio.on('solicitar_cartelas')
 def enviar_cartelas():
@@ -380,6 +401,24 @@ def sair_sala(data):
             emit('atualizar_jogadores', {
                 'jogadores': [jogador['nome'] for jogador in sala['jogadores']]
             }, room=codigo)
+
+@socketio.on('solicitar_partidas')
+def enviar_partidas(data):
+    tipo_sala = data.get('tipo_sala', '1')
+    # Só envia partidas disponíveis para Sala Pública
+    if tipo_sala != '2':
+        return
+        
+    partidas_disponiveis = []
+    
+    for codigo, partida in partidas_sala_2.items():
+        if partida['estado'] == 'aguardando':
+            partidas_disponiveis.append({
+                'codigo': codigo,
+                'jogadores': partida['jogadores']
+            })
+    
+    emit('atualizar_partidas', {'partidas': partidas_disponiveis})
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0') 
