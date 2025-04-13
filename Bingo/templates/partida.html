@@ -579,7 +579,7 @@
                 validationMessage.style.backgroundColor = '#4CAF50';
                 validationMessage.style.color = 'white';
                 validationMessage.innerHTML = 'BINGO VÁLIDO! Parabéns!';
-                gritarBingo();
+                socket.emit('bingo', { codigo: codigoPartida });
             } else {
                 let mensagemErro = '<strong>Bingo inválido!</strong><br>';
                 if (erros.numerosNaoSorteados.length > 0) {

@@ -69,20 +69,6 @@ def sortear_numeros(codigo, tipo_sala='1'):
         partidas_dict[codigo]['numeros_sorteados'].append(numero)
         socketio.emit('numero_sorteado', {'numero': numero}, room=codigo)
         
-        # Verifica se algum jogador fez bingo
-        for jogador in partidas_dict[codigo]['jogadores']:
-            if jogador in gerenciadores_cartelas:
-                gerenciador = gerenciadores_cartelas[jogador]
-                gerenciador.marcar_numero_em_todas_cartelas(numero)
-                cartela_bingo = gerenciador.verificar_bingo_em_todas_cartelas()
-                
-                if cartela_bingo:
-                    print(f"BINGO! Jogador {jogador} venceu na sala {codigo}")
-                    partidas_dict[codigo]['estado'] = 'finalizado'
-                    partidas_dict[codigo]['vencedor'] = jogador
-                    socketio.emit('bingo', {'vencedor': jogador}, room=codigo)
-                    return
-        
         eventlet.sleep(3)  # Espera 3 segundos entre os sorteios
 
 def contagem_regressiva(codigo, tipo_sala='1'):
@@ -422,6 +408,46 @@ def enviar_partidas(data):
             })
     
     emit('atualizar_partidas', {'partidas': partidas_disponiveis})
+
+@socketio.on('bingo')
+def handle_bingo(data):
+    """Handler do evento de bingo via Socket.IO"""
+    codigo = data.get('codigo')
+    nome_jogador = session.get('nome_jogador')
+    tipo_sala = session.get('tipo_sala', '1')
+    
+    if not nome_jogador:
+        emit('erro', {'mensagem': 'Nome do jogador não encontrado'})
+        return
+    
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
+        emit('erro', {'mensagem': 'Partida não encontrada'})
+        return
+    
+    partida = partidas_dict[codigo]
+    
+    # Verifica se o jogo está em andamento
+    if partida['estado'] != 'em_andamento':
+        emit('erro', {'mensagem': 'O jogo não está em andamento'})
+        return
+    
+    # Marca todos os números sorteados na cartela do jogador
+    gerenciador = gerenciadores_cartelas[nome_jogador]
+    for numero in partida['numeros_sorteados']:
+        gerenciador.marcar_numero_em_todas_cartelas(numero)
+    
+    # Verifica se o jogador fez bingo
+    cartela_bingo = gerenciador.verificar_bingo_em_todas_cartelas()
+    
+    if cartela_bingo:
+        print(f"BINGO! Jogador {nome_jogador} venceu na sala {codigo}")
+        partida['estado'] = 'finalizado'
+        partida['vencedor'] = nome_jogador
+        socketio.emit('bingo', {'vencedor': nome_jogador}, room=codigo)
+    else:
+        emit('erro', {'mensagem': 'Bingo inválido! Verifique sua cartela novamente.'})
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0') 
