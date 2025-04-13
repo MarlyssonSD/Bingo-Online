@@ -55,3 +55,5 @@ Este é um projeto em **Python** que implementa uma versão **online** do jogo *
 - **Python**: Linguagem de programação para o desenvolvimento do jogo 🐍.
 - **Sockets**: Comunicação em rede para o jogo online 🌐.
 
+## Uso do Serveo.net para colocar o jogo online (IP público)
+- Jogar o seguinte código no terminal após rodar o app.py: ssh -R 80:localhost:5000 serveo.net
