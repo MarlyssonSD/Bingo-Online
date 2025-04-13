@@ -195,8 +195,6 @@
         .jogadores {
             margin: 20px 0;
             font-size: 18px;
-        }
-        .aguardando {
             color: #666;
             font-style: italic;
         }
@@ -228,11 +226,46 @@
             transform: scale(0.98);
             box-shadow: 0 2px 8px rgba(255, 68, 68, 0.2);
         }
+        
+        .voltar-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #f32121;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(131, 8, 8, 0.3);
+        }
+        
+        .voltar-button:hover {
+            background-color: #610606;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+        }
+        
+        .voltar-button:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>Partida: {{ codigo }}</h1>
+        <div class="header-container">
+            <h1>Partida: {{ codigo }}</h1>
+            <button id="voltar-btn" class="voltar-button" onclick="sairPartida()">Voltar ao Início</button>
+        </div>
         <div class="jogadores" id="jogadores">Aguardando jogadores...</div>
         <div class="status-container">
             <div id="status">Aguardando outro jogador...</div>
@@ -271,6 +304,16 @@
             console.log('Jogador entrou:', data.nome);
             if (!jogadoresConectados.includes(data.nome)) {
                 jogadoresConectados.push(data.nome);
+            }
+            atualizarListaJogadores();
+            atualizarStatusJogo();
+        });
+        
+        socket.on('jogador_saiu', (data) => {
+            console.log('Jogador saiu:', data.nome);
+            const index = jogadoresConectados.indexOf(data.nome);
+            if (index !== -1) {
+                jogadoresConectados.splice(index, 1);
             }
             atualizarListaJogadores();
             atualizarStatusJogo();
@@ -487,6 +530,11 @@
             alert(data.mensagem);
         });
 
+        socket.on('mensagem', (data) => {
+            console.log('Mensagem:', data);
+            alert(data.texto);
+        });
+
         // Função para entrar na sala
         function entrarSala() {
             const codigo = document.getElementById('codigo').value;
@@ -602,6 +650,13 @@
                 setTimeout(() => {
                     validationMessage.style.display = 'none';
                 }, 5000);
+            }
+        }
+
+        function sairPartida() {
+            if (confirm('Tem certeza que deseja sair da partida?')) {
+                socket.emit('sair_sala', { codigo: codigoPartida });
+                window.location.href = '/';
             }
         }
     </script>
