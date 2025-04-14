@@ -517,9 +517,12 @@
                     const index = i * 11 + j;
                     const numeroDiv = document.createElement('div');
                     
-                    if (index < numerosSorteados.length) {
+                    // Usa o índice reverso para mostrar os números mais recentes primeiro
+                    const reversedIndex = numerosSorteados.length - 1 - index;
+                    
+                    if (reversedIndex >= 0) {
                         numeroDiv.className = 'numero-sorteado';
-                        numeroDiv.textContent = numerosSorteados[index];
+                        numeroDiv.textContent = numerosSorteados[reversedIndex];
                     } else {
                         numeroDiv.className = 'numero-vazio';
                     }
