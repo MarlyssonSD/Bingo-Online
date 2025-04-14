@@ -385,6 +385,7 @@
           case "contagem":
             statusDiv.textContent = "Iniciando jogo em...";
             contagemDiv.style.display = "block";
+            contagemDiv.classList.remove("urgente", "final");
             ultimoSorteadoDiv.style.display = "none";
             break;
           case "em_andamento":
@@ -395,20 +396,35 @@
           case "finalizado":
             statusDiv.textContent = "Fim do jogo!";
             contagemDiv.style.display = "none";
+            ultimoSorteadoDiv.style.display = "none";
             break;
         }
       }
-
-      socket.on("iniciar_contagem", () => {
-        console.log("Iniciando contagem regressiva");
-        estadoJogo = "contagem";
-        atualizarStatusJogo();
-      });
 
       socket.on("atualizar_contagem", (data) => {
         console.log("Atualizando contagem:", data.segundos);
         const contagemDiv = document.getElementById("contagem");
         contagemDiv.textContent = data.segundos;
+        contagemDiv.style.display = "block";
+
+        // Remove classes anteriores
+        contagemDiv.classList.remove("urgente", "final");
+
+        // Adiciona classes de estilo baseadas no tempo restante
+        if (data.segundos <= 5) {
+          contagemDiv.classList.add("urgente");
+        } else if (data.segundos <= 10) {
+          contagemDiv.classList.add("final");
+        }
+      });
+
+      socket.on("iniciar_contagem", () => {
+        console.log("Iniciando contagem regressiva");
+        estadoJogo = "contagem";
+        const contagemDiv = document.getElementById("contagem");
+        contagemDiv.style.display = "block";
+        contagemDiv.classList.remove("urgente", "final");
+        atualizarStatusJogo();
       });
 
       socket.on("jogo_iniciado", () => {
