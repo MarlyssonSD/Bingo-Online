@@ -358,24 +358,48 @@ def handle_iniciar_jogo(data):
 @socketio.on('sair_sala')
 def sair_sala(data):
     codigo = data.get('codigo')
-    if not codigo or codigo not in partidas:
+    nome_jogador = session.get('nome_jogador')
+    tipo_sala = session.get('tipo_sala', '1')
+    
+    if not nome_jogador:
+        emit('erro', {'mensagem': 'Nome do jogador não encontrado'})
+        return
+        
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if not codigo or codigo not in partidas_dict:
         emit('erro', {'mensagem': 'Sala não encontrada'})
         return
     
-    sala = partidas[codigo]
-    sid = request.sid
+    sala = partidas_dict[codigo]
+    
+    # Verifica se o jogo está em andamento e tem apenas 2 jogadores
+    jogo_em_andamento = sala['estado'] == 'em_andamento'
+    tem_dois_jogadores = len(sala['jogadores']) == 2
     
     # Remove o jogador da sala
-    if sid in sala['jogadores']:
-        del sala['jogadores'][sid]
+    if nome_jogador in sala['jogadores']:
+        sala['jogadores'].remove(nome_jogador)
         leave_room(codigo)
         
         # Se não houver mais jogadores, remove a sala
         if not sala['jogadores']:
-            del partidas[codigo]
+            del partidas_dict[codigo]
         else:
+            # Se o jogo estava em andamento e tinha apenas 2 jogadores,
+            # o jogador restante é o vencedor
+            if jogo_em_andamento and tem_dois_jogadores:
+                jogador_restante = sala['jogadores'][0]
+                print(f"VITÓRIA POR WO! Jogador {jogador_restante} venceu na sala {codigo} porque o outro jogador saiu.")
+                sala['estado'] = 'finalizado'
+                sala['vencedor'] = jogador_restante
+                socketio.emit('bingo', {'vencedor': jogador_restante, 'vitoria_por_wo': True}, room=codigo)
+                socketio.emit('mensagem', {
+                    'texto': f"O jogador {nome_jogador} saiu da partida. {jogador_restante} foi declarado vencedor!",
+                    'vitoria_por_wo': True
+                }, room=codigo)
             # Se o jogo ainda não começou, atualiza o estado
-            if sala['estado'] == 'aguardando' or sala['estado'] == 'contagem':
+            elif sala['estado'] == 'aguardando' or sala['estado'] == 'contagem':
                 if len(sala['jogadores']) < 2:
                     sala['estado'] = 'aguardando'
                     sala['contagem'] = None
@@ -385,8 +409,11 @@ def sair_sala(data):
             
             # Atualiza a lista de jogadores
             emit('atualizar_jogadores', {
-                'jogadores': [jogador['nome'] for jogador in sala['jogadores']]
+                'jogadores': sala['jogadores']
             }, room=codigo)
+    
+    # Notifica a sala que o jogador saiu
+    emit('jogador_saiu', {'nome': nome_jogador}, room=codigo)
 
 @socketio.on('solicitar_partidas')
 def enviar_partidas(data):
