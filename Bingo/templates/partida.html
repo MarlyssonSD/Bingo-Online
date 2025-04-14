@@ -286,6 +286,59 @@
         width: 100%;
         margin-bottom: 10px;
       }
+
+      /* Media queries for mobile responsiveness */
+      @media screen and (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+        .main-game-area {
+          flex-direction: column;
+          align-items: center;
+        }
+        .numeros-sorteados {
+          min-width: 100%;
+          margin-top: 20px;
+        }
+        .lista-numeros-grid {
+          grid-template-columns: repeat(8, 1fr);
+        }
+        .contagem, .ultimo-sorteado {
+          font-size: 36px;
+          padding: 15px;
+        }
+        .bingo-button {
+          padding: 15px 30px;
+          font-size: 24px;
+        }
+        .cartela {
+          transform: scale(0.9);
+        }
+      }
+
+      @media screen and (max-width: 480px) {
+        .lista-numeros-grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        .contagem, .ultimo-sorteado {
+          font-size: 28px;
+          padding: 10px;
+        }
+        .bingo-button {
+          padding: 12px 24px;
+          font-size: 20px;
+        }
+        .cartela {
+          transform: scale(0.8);
+        }
+        .numero {
+          width: 30px;
+          height: 30px;
+          line-height: 30px;
+          font-size: 14px;
+          padding: 5px;
+        }
+      }
     </style>
   </head>
   <body>
