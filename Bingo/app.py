@@ -393,9 +393,10 @@ def sair_sala(data):
                 print(f"VITÓRIA POR WO! Jogador {jogador_restante} venceu na sala {codigo} porque o outro jogador saiu.")
                 sala['estado'] = 'finalizado'
                 sala['vencedor'] = jogador_restante
-                socketio.emit('bingo', {'vencedor': jogador_restante}, room=codigo)
+                socketio.emit('bingo', {'vencedor': jogador_restante, 'vitoria_por_wo': True}, room=codigo)
                 socketio.emit('mensagem', {
-                    'texto': f"O jogador {nome_jogador} saiu da partida. {jogador_restante} foi declarado vencedor!"
+                    'texto': f"O jogador {nome_jogador} saiu da partida. {jogador_restante} foi declarado vencedor!",
+                    'vitoria_por_wo': True
                 }, room=codigo)
             # Se o jogo ainda não começou, atualiza o estado
             elif sala['estado'] == 'aguardando' or sala['estado'] == 'contagem':

@@ -532,7 +532,56 @@
 
         socket.on('mensagem', (data) => {
             console.log('Mensagem:', data);
-            alert(data.texto);
+            if (data.vitoria_por_wo) {
+                // Create a custom dialog
+                const dialog = document.createElement('div');
+                dialog.style.position = 'fixed';
+                dialog.style.top = '50%';
+                dialog.style.left = '50%';
+                dialog.style.transform = 'translate(-50%, -50%)';
+                dialog.style.padding = '20px';
+                dialog.style.backgroundColor = 'white';
+                dialog.style.borderRadius = '5px';
+                dialog.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+                dialog.style.textAlign = 'center';
+                dialog.style.zIndex = '1000';
+
+                // Add message
+                const message = document.createElement('p');
+                message.textContent = data.texto;
+                message.style.marginBottom = '20px';
+                dialog.appendChild(message);
+
+                // Add OK button
+                const button = document.createElement('button');
+                button.textContent = 'OK';
+                button.style.padding = '10px 20px';
+                button.style.backgroundColor = '#4CAF50';
+                button.style.color = 'white';
+                button.style.border = 'none';
+                button.style.borderRadius = '5px';
+                button.style.cursor = 'pointer';
+                button.onclick = function() {
+                    window.location.href = '/';
+                };
+                dialog.appendChild(button);
+
+                // Add overlay
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                overlay.style.zIndex = '999';
+
+                // Add elements to body
+                document.body.appendChild(overlay);
+                document.body.appendChild(dialog);
+            } else {
+                alert(data.texto);
+            }
         });
 
         // Função para entrar na sala
