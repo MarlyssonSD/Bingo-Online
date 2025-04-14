@@ -32,8 +32,8 @@ class CartelaBingo:
             # Preencher a coluna na matriz
             self.cartela_numeros[:, coluna] = numeros_coluna
         
-        # Garantir que o centro seja um espaço livre (0)
-        self.cartela_numeros[2, 2] = 0
+        # Marca o centro como -1 (será tratado como espaço vazio na interface)
+        self.cartela_numeros[2, 2] = -1
         self.cartela_marcacao[2, 2] = True  # Centro sempre marcado
     
     def marcar_numero(self, numero):
@@ -70,9 +70,23 @@ class CartelaBingo:
         Imprime a cartela de números e a matriz de marcação
         """
         print("\nCartela de Números:")
-        print(self.cartela_numeros)
+        for linha in range(5):
+            for coluna in range(5):
+                numero = self.cartela_numeros[linha, coluna]
+                if linha == 2 and coluna == 2:  # Centro da cartela
+                    print("   ", end=" ")  # Espaço vazio no centro
+                else:
+                    print(f"{numero:2d}", end=" ")
+            print()
+        
         print("\nCartela de Marcação:")
-        print(self.cartela_marcacao)
+        for linha in range(5):
+            for coluna in range(5):
+                if linha == 2 and coluna == 2:  # Centro da cartela
+                    print("   ", end=" ")  # Espaço vazio no centro
+                else:
+                    print("X" if self.cartela_marcacao[linha, coluna] else "-", end=" ")
+            print()
 
 class GerenciadorCartelas:
     def __init__(self):
