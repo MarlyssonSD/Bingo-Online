@@ -221,8 +221,7 @@ def entrar_partida(data):
     if nome_jogador in partida['jogadores']:
         join_room(codigo)
         # Envia lista atualizada de jogadores para todos
-        for jogador in partida['jogadores']:
-            socketio.emit('jogador_entrou', {'nome': jogador}, room=codigo)
+        socketio.emit('atualizar_jogadores', {'jogadores': partida['jogadores']}, room=codigo)
         emit('redirecionar', {'codigo': codigo})
         return
     
@@ -242,12 +241,14 @@ def entrar_partida(data):
     # Adiciona o jogador à sala
     join_room(codigo)
     
-    # Notifica todos na sala sobre todos os jogadores
-    for jogador in partida['jogadores']:
-        socketio.emit('jogador_entrou', {'nome': jogador}, room=codigo)
-    
     # Redireciona o jogador para a página da partida
     emit('redirecionar', {'codigo': codigo})
+    
+    # Aguarda um pequeno intervalo para garantir que o redirecionamento ocorreu
+    eventlet.sleep(0.1)
+    
+    # Envia a lista completa de jogadores para todos na sala
+    socketio.emit('atualizar_jogadores', {'jogadores': partida['jogadores']}, room=codigo)
     
     # Se temos dois jogadores e a contagem ainda não começou, inicia a contagem regressiva
     if len(partida['jogadores']) >= 2 and partida['estado'] == 'aguardando':
@@ -475,6 +476,22 @@ def handle_bingo(data):
         socketio.emit('bingo', {'vencedor': nome_jogador}, room=codigo)
     else:
         emit('erro', {'mensagem': 'Bingo inválido! Verifique sua cartela novamente.'})
+
+@socketio.on('atualizar_jogadores')
+def handle_atualizar_jogadores(data):
+    codigo = data.get('codigo')
+    tipo_sala = session.get('tipo_sala', '1')
+    
+    if not codigo:
+        return
+    
+    partidas_dict = partidas if tipo_sala == '1' else partidas_sala_2
+    
+    if codigo not in partidas_dict:
+        return
+    
+    partida = partidas_dict[codigo]
+    emit('atualizar_jogadores', {'jogadores': partida['jogadores']})
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0') 

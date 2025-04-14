@@ -333,15 +333,17 @@
       socket.on("connect", () => {
         console.log("Conectado ao servidor");
         socket.emit("solicitar_cartelas");
+        // Solicita a lista de jogadores ao conectar
+        socket.emit("atualizar_jogadores", { codigo: codigoPartida });
       });
 
       socket.on("jogador_entrou", (data) => {
         console.log("Jogador entrou:", data.nome);
         if (!jogadoresConectados.includes(data.nome)) {
           jogadoresConectados.push(data.nome);
+          atualizarListaJogadores();
+          atualizarStatusJogo();
         }
-        atualizarListaJogadores();
-        atualizarStatusJogo();
       });
 
       socket.on("jogador_saiu", (data) => {
@@ -629,10 +631,9 @@
 
       socket.on("atualizar_jogadores", (data) => {
         console.log("Jogadores atualizados:", data);
-        const jogadoresDiv = document.getElementById("jogadores");
-        jogadoresDiv.innerHTML = data.jogadores
-          .map((jogador) => `<div class="jogador">${jogador}</div>`)
-          .join("");
+        jogadoresConectados = data.jogadores;
+        atualizarListaJogadores();
+        atualizarStatusJogo();
       });
 
       socket.on("erro", (data) => {
