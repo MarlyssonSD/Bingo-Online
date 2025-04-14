@@ -1,181 +1,190 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bingo Online - Jogar</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
-            background-color: #f0f0f0;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .section {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        input[type="text"] {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        #partidas-disponiveis {
-            text-align: left;
-        }
-        .partida-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .partida-item:last-child {
-            border-bottom: none;
-        }
-        .partida-info {
-            flex-grow: 1;
-        }
-        .partida-item button {
-            background-color: #2196F3;
-        }
-        .partida-item button:hover {
-            background-color: #1976D2;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        text-align: center;
+        background-color: #f0f0f0;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .section {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      input[type="text"] {
+        padding: 8px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      #partidas-disponiveis {
+        text-align: left;
+      }
+      .partida-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .partida-item:last-child {
+        border-bottom: none;
+      }
+      .partida-info {
+        flex-grow: 1;
+      }
+      .partida-item button {
+        background-color: #2196f3;
+      }
+      .partida-item button:hover {
+        background-color: #1976d2;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Bem-vindo, {{ nome_jogador }}!</h1>
     <div class="container">
-        <div class="section">
-            <h2>Criar Nova Partida</h2>
-            <button onclick="criarPartida()">Criar Partida</button>
+      <div class="section">
+        <h2>Criar Nova Partida</h2>
+        <button onclick="criarPartida()">Criar Partida</button>
+      </div>
+
+      {% if tipo_sala == '1' %}
+      <div class="section">
+        <h2>Entrar em uma Partida</h2>
+        <input
+          type="text"
+          id="codigo-partida"
+          placeholder="Código da partida"
+        />
+        <button onclick="entrarPartida()">Entrar</button>
+      </div>
+      {% endif %} {% if tipo_sala == '2' %}
+      <div class="section" id="partidas-disponiveis">
+        <h2>Partidas Disponíveis</h2>
+        <div id="lista-partidas">
+          <!-- As partidas serão listadas aqui -->
         </div>
-        
-        {% if tipo_sala == '1' %}
-        <div class="section">
-            <h2>Entrar em uma Partida</h2>
-            <input type="text" id="codigo-partida" placeholder="Código da partida">
-            <button onclick="entrarPartida()">Entrar</button>
-        </div>
-        {% endif %}
-        
-        {% if tipo_sala == '2' %}
-        <div class="section" id="partidas-disponiveis">
-            <h2>Partidas Disponíveis</h2>
-            <div id="lista-partidas">
-                <!-- As partidas serão listadas aqui -->
-            </div>
-        </div>
-        {% endif %}
+      </div>
+      {% endif %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io();
-        const tipoSala = '{{ tipo_sala }}';
-        
-        socket.on('connect', () => {
-            console.log('Conectado ao servidor');
-        });
+      const socket = io();
+      const tipoSala = "{{ tipo_sala }}";
 
-        socket.on('partida_criada', (data) => {
-            window.location.href = `/partida/${data.codigo}`;
-        });
+      socket.on("connect", () => {
+        console.log("Conectado ao servidor");
+      });
 
-        socket.on('redirecionar', (data) => {
-            window.location.href = `/partida/${data.codigo}`;
-        });
+      socket.on("partida_criada", (data) => {
+        window.location.href = `/partida/${data.codigo}`;
+      });
 
-        socket.on('erro', (data) => {
-            alert(data.mensagem);
-        });
+      socket.on("redirecionar", (data) => {
+        window.location.href = `/partida/${data.codigo}`;
+      });
 
-        socket.on('atualizar_partidas', (data) => {
-            const listaPartidas = document.getElementById('lista-partidas');
-            if (listaPartidas) {
-                listaPartidas.innerHTML = '';
-                
-                if (data.partidas.length === 0) {
-                    listaPartidas.innerHTML = '<p>Nenhuma partida disponível no momento.</p>';
-                    return;
-                }
-                
-                data.partidas.forEach(partida => {
-                    const div = document.createElement('div');
-                    div.className = 'partida-item';
-                    
-                    // Determina o status a ser exibido
-                    let statusText = '';
-                    if (partida.estado === 'contagem') {
-                        statusText = `Iniciando em: ${partida.contagem}s`;
-                    } else {
-                        statusText = 'Aguardando jogadores';
-                    }
-                    
-                    div.innerHTML = `
-                        <div class="partida-info">
-                            <strong>Código:</strong> ${partida.codigo}<br>
-                            <strong>Jogadores:</strong> ${partida.jogadores.length}<br>
-                            <strong>Status:</strong> ${statusText}
-                        </div>
-                        <button onclick="entrarPartidaCodigo('${partida.codigo}')">Entrar</button>
-                    `;
-                    listaPartidas.appendChild(div);
-                });
+      socket.on("erro", (data) => {
+        alert(data.mensagem);
+      });
+
+      socket.on("atualizar_partidas", (data) => {
+        const listaPartidas = document.getElementById("lista-partidas");
+        if (listaPartidas) {
+          listaPartidas.innerHTML = "";
+
+          if (data.partidas.length === 0) {
+            listaPartidas.innerHTML =
+              "<p>Nenhuma partida disponível no momento.</p>";
+            return;
+          }
+
+          data.partidas.forEach((partida) => {
+            const div = document.createElement("div");
+            div.className = "partida-item";
+
+            div.innerHTML = `
+                    <div class="partida-info">
+                        <strong>Código:</strong> ${partida.codigo}<br>
+                        <strong>Jogadores:</strong> ${
+                          partida.jogadores.length
+                        }<br>
+                        <strong>Status:</strong> <span class="status-text">${
+                          partida.estado === "contagem"
+                            ? "O Jogo começará em breve"
+                            : "Aguardando jogadores"
+                        }</span>
+                    </div>
+                    <button onclick="entrarPartidaCodigo('${
+                      partida.codigo
+                    }')">Entrar</button>
+                `;
+            listaPartidas.appendChild(div);
+
+            // Após adicionar o elemento ao DOM, seleciona e aplica o estilo se necessário
+            const statusSpan = div.querySelector(".status-text");
+            if (partida.estado === "contagem" && statusSpan) {
+              statusSpan.style.color = "#4CAF50";
             }
-        });
-
-        function criarPartida() {
-            socket.emit('criar_partida');
+          });
         }
+      });
 
-        function entrarPartida() {
-            const codigo = document.getElementById('codigo-partida').value;
-            if (codigo) {
-                entrarPartidaCodigo(codigo);
-            }
+      function criarPartida() {
+        socket.emit("criar_partida");
+      }
+
+      function entrarPartida() {
+        const codigo = document.getElementById("codigo-partida").value;
+        if (codigo) {
+          entrarPartidaCodigo(codigo);
         }
+      }
 
-        function entrarPartidaCodigo(codigo) {
-            socket.emit('entrar_partida', { codigo: codigo });
-        }
+      function entrarPartidaCodigo(codigo) {
+        socket.emit("entrar_partida", { codigo: codigo });
+      }
 
-        // Solicita a lista de partidas disponíveis ao conectar apenas para Sala Particular 2
-        if (tipoSala === '2') {
-            socket.emit('solicitar_partidas', { tipo_sala: tipoSala });
+      // Solicita a lista de partidas disponíveis ao conectar apenas para Sala Particular 2
+      if (tipoSala === "2") {
+        socket.emit("solicitar_partidas", { tipo_sala: tipoSala });
 
-            // Atualiza a lista de partidas periodicamente
-            setInterval(() => {
-                socket.emit('solicitar_partidas', { tipo_sala: tipoSala });
-            }, 5000);
-        }
+        // Atualiza a lista de partidas periodicamente
+        setInterval(() => {
+          socket.emit("solicitar_partidas", { tipo_sala: tipoSala });
+        }, 5000);
+      }
     </script>
-</body>
-</html> 
+  </body>
+</html>

@@ -1,726 +1,771 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bingo Online - Partida</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .status-container {
+        margin: 20px 0;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .main-game-area {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .cartelas-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .cartela-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .cartela {
+        border: 2px solid #333;
+        border-radius: 5px;
+        padding: 10px;
+        background-color: white;
+      }
+      .cartela-header {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
+        background-color: #4caf50;
+        color: white;
+        padding: 5px 0;
+        border-radius: 3px;
+      }
+      .cartela-body {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(5, 1fr);
+        gap: 5px;
+      }
+      .numero {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+        background-color: #f9f9f9;
+        font-size: 18px;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .numero:hover {
+        background-color: #e0e0e0;
+        transform: scale(1.05);
+      }
+
+      .numero.marcado {
+        background-color: #4caf50;
+        color: white;
+        font-weight: bold;
+        transform: scale(1);
+      }
+
+      .numero.centro {
+        background-color: #4caf50;
+        color: white;
+        font-weight: bold;
+        cursor: not-allowed;
+      }
+
+      .numero.centro:hover {
+        background-color: #4caf50;
+        transform: none;
+      }
+
+      .validation-message {
+        margin: 10px 0;
+        padding: 15px;
+        border-radius: 5px;
+        display: none;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .validation-errors {
+        margin-top: 10px;
+        font-size: 14px;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.1);
+        padding: 5px;
+        border-radius: 3px;
+      }
+      .numeros-sorteados {
+        padding: 10px;
+        margin-top: 20px;
+        text-align: center;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+        min-width: 400px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+
+      .lista-numeros-grid {
+        display: grid;
+        grid-template-columns: repeat(11, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .numero-sorteado {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 5px;
+        background-color: #4caf50;
+        color: white;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        font-weight: bold;
+        margin: 0 auto;
+      }
+
+      .numero-vazio {
+        width: 35px;
+        height: 35px;
+      }
+
+      .contagem {
+        font-size: 48px;
+        font-weight: bold;
+        color: #2196f3;
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 10px;
+        background: #e3f2fd;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        animation: pulse 1s infinite;
+      }
+
+      .contagem.urgente {
+        color: #f44336;
+        background: #ffebee;
+        animation: pulse 0.5s infinite;
+      }
+
+      .contagem.final {
+        color: #4caf50;
+        background: #e8f5e9;
+        animation: none;
+      }
+      .ultimo-sorteado {
+        font-size: 48px;
+        font-weight: bold;
+        color: #2196f3;
+        margin: 20px 0;
+        padding: 30px;
+        border-radius: 20px;
+        background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+        box-shadow: 0 8px 16px rgba(33, 150, 243, 0.15);
+        animation: aparecer 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        text-align: center;
+        min-width: 200px;
+        display: inline-block;
+      }
+      @keyframes aparecer {
+        from {
+          opacity: 0;
+          transform: scale(0.6) translateY(-20px);
         }
-        .game-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
         }
-        .status-container {
-            margin: 20px 0;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .main-game-area {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        .cartelas-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .cartela-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .cartela {
-            border: 2px solid #333;
-            border-radius: 5px;
-            padding: 10px;
-            background-color: white;
-        }
-        .cartela-header {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 5px 0;
-            border-radius: 3px;
-        }
-        .cartela-body {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(5, 1fr);
-            gap: 5px;
-        }
-        .numero {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-            background-color: #f9f9f9;
-            font-size: 18px;
-            width: 40px;
-            height: 40px;
-            line-height: 40px;
-            border-radius: 3px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .numero:hover {
-            background-color: #e0e0e0;
-            transform: scale(1.05);
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
         }
 
-        .numero.marcado {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-            transform: scale(1);
+        50% {
+          transform: scale(1.02);
+          box-shadow: 0 8px 20px rgba(255, 68, 68, 0.5);
         }
 
-        .numero.centro {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-            cursor: not-allowed;
+        100% {
+          transform: scale(1);
+          box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
         }
+      }
+      .jogadores {
+        margin: 20px 0;
+        font-size: 18px;
+        color: #666;
+        font-style: italic;
+      }
+      .bingo-button {
+        padding: 20px 40px;
+        font-size: 32px;
+        font-weight: bold;
+        background-color: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 15px;
+        cursor: pointer;
+        margin: 20px 0;
+        animation: pulse 2s infinite;
+        display: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
 
-        .numero.centro:hover {
-            background-color: #4CAF50;
-            transform: none;
-        }
+      .bingo-button:hover {
+        background-color: #ff0000;
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(255, 68, 68, 0.4);
+      }
 
-        .validation-message {
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 5px;
-            display: none;
-            font-weight: bold;
-            text-align: center;
-        }
+      .bingo-button:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 8px rgba(255, 68, 68, 0.2);
+      }
 
-        .validation-errors {
-            margin-top: 10px;
-            font-size: 14px;
-            color: white;
-            background-color: rgba(0,0,0,0.1);
-            padding: 5px;
-            border-radius: 3px;
-        }
-        .numeros-sorteados {
-            padding: 10px;
-            margin-top: 20px;
-            text-align: center;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-            min-width: 400px;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .lista-numeros-grid {
-            display: grid;
-            grid-template-columns: repeat(11, 1fr);
-            gap: 8px;
-            margin-top: 10px;
-        }
-        
-        .numero-sorteado {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 5px;
-            background-color: #4CAF50;
-            color: white;
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-            font-weight: bold;
-            margin: 0 auto;
-        }
-        
-        .numero-vazio {
-            width: 35px;
-            height: 35px;
-        }
-        
-        .contagem {
-            font-size: 48px;
-            font-weight: bold;
-            color: #2196F3;
-            margin: 20px 0;
-            padding: 20px;
-            border-radius: 10px;
-            background: #e3f2fd;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            animation: pulse 1s infinite;
-        }
+      .voltar-button {
+        padding: 10px 20px;
+        font-size: 16px;
+        background-color: #f32121;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 10px 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(131, 8, 8, 0.3);
+      }
 
-        .contagem.urgente {
-            color: #f44336;
-            background: #ffebee;
-            animation: pulse 0.5s infinite;
-        }
+      .voltar-button:hover {
+        background-color: #861010;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+      }
 
-        .contagem.final {
-            color: #4CAF50;
-            background: #e8f5e9;
-            animation: none;
-        }
-        .ultimo-sorteado {
-            font-size: 48px;
-            font-weight: bold;
-            color: #2196F3;
-            margin: 20px 0;
-            padding: 30px;
-            border-radius: 20px;
-            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
-            box-shadow: 0 8px 16px rgba(33, 150, 243, 0.15);
-            animation: aparecer 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-align: center;
-            min-width: 200px;
-            display: inline-block;
-        }
-        @keyframes aparecer {
-            from {
-                opacity: 0;
-                transform: scale(0.6) translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
-            }
-            
-            50% {
-                transform: scale(1.02);
-                box-shadow: 0 8px 20px rgba(255, 68, 68, 0.5);
-            }
-            
-            100% {
-                transform: scale(1);
-                box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
-            }
-        }
-        .jogadores {
-            margin: 20px 0;
-            font-size: 18px;
-            color: #666;
-            font-style: italic;
-        }
-        .bingo-button {
-            padding: 20px 40px;
-            font-size: 32px;
-            font-weight: bold;
-            background-color: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            margin: 20px 0;
-            animation: pulse 2s infinite;
-            display: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        
-        .bingo-button:hover {
-            background-color: #ff0000;
-            transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(255, 68, 68, 0.4);
-        }
-        
-        .bingo-button:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 8px rgba(255, 68, 68, 0.2);
-        }
-        
-        .voltar-button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #f32121;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(131, 8, 8, 0.3);
-        }
-        
-        .voltar-button:hover {
-            background-color: #861010;
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
-        }
-        
-        .voltar-button:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);
-        }
-        
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 10px;
-        }
+      .voltar-button:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);
+      }
+
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 10px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="game-container">
-        <div class="header-container">
-            <h1>Partida: {{ codigo }}</h1>
-            <button id="voltar-btn" class="voltar-button" onclick="sairPartida()">Voltar ao Início</button>
+      <div class="header-container">
+        <h1>Partida: {{ codigo }}</h1>
+        <button id="voltar-btn" class="voltar-button" onclick="sairPartida()">
+          Voltar ao Início
+        </button>
+      </div>
+      <div class="jogadores" id="jogadores">Aguardando jogadores...</div>
+      <div class="status-container">
+        <div id="status">Aguardando outro jogador...</div>
+        <div id="contagem" class="contagem" style="display: none"></div>
+        <div
+          id="ultimo-sorteado"
+          class="ultimo-sorteado"
+          style="display: none"
+        ></div>
+        <div id="validation-message" class="validation-message"></div>
+      </div>
+
+      <div class="main-game-area">
+        <div class="cartelas-container" id="cartelas-container"></div>
+
+        <div class="numeros-sorteados" id="numeros-sorteados">
+          <h3>Números Sorteados</h3>
+          <div id="lista-numeros" class="lista-numeros-grid"></div>
         </div>
-        <div class="jogadores" id="jogadores">Aguardando jogadores...</div>
-        <div class="status-container">
-            <div id="status">Aguardando outro jogador...</div>
-            <div id="contagem" class="contagem" style="display: none;"></div>
-            <div id="ultimo-sorteado" class="ultimo-sorteado" style="display: none;"></div>
-            <div id="validation-message" class="validation-message"></div>
-        </div>
-        
-        <div class="main-game-area">
-            <div class="cartelas-container" id="cartelas-container"></div>
-            
-            <div class="numeros-sorteados" id="numeros-sorteados">
-                <h3>Números Sorteados</h3>
-                <div id="lista-numeros" class="lista-numeros-grid"></div>
-            </div>
-        </div>
+      </div>
     </div>
 
     <script>
-        const socket = io();
-        const codigoPartida = '{{ codigo }}';
-        const nomeJogador = '{{ nome_jogador }}';
-        let jogadoresConectados = [];
-        let estadoJogo = 'aguardando';
-        let numerosSorteados = [];  // Alterado de Set para Array para manter a ordem
-        let cartelasJogador = [];
-        let jogoIniciado = false;
-        let bingoVerificado = false;
-        
-        // Solicita as cartelas ao conectar
-        socket.on('connect', () => {
-            console.log('Conectado ao servidor');
-            socket.emit('solicitar_cartelas');
-        });
-        
-        socket.on('jogador_entrou', (data) => {
-            console.log('Jogador entrou:', data.nome);
-            if (!jogadoresConectados.includes(data.nome)) {
-                jogadoresConectados.push(data.nome);
+      const socket = io();
+      const codigoPartida = "{{ codigo }}";
+      const nomeJogador = "{{ nome_jogador }}";
+      let jogadoresConectados = [];
+      let estadoJogo = "aguardando";
+      let numerosSorteados = []; // Alterado de Set para Array para manter a ordem
+      let cartelasJogador = [];
+      let jogoIniciado = false;
+      let bingoVerificado = false;
+
+      // Solicita as cartelas ao conectar
+      socket.on("connect", () => {
+        console.log("Conectado ao servidor");
+        socket.emit("solicitar_cartelas");
+        // Solicita a lista de jogadores ao conectar
+        socket.emit("atualizar_jogadores", { codigo: codigoPartida });
+      });
+
+      socket.on("jogador_entrou", (data) => {
+        console.log("Jogador entrou:", data.nome);
+        if (!jogadoresConectados.includes(data.nome)) {
+          jogadoresConectados.push(data.nome);
+          atualizarListaJogadores();
+          atualizarStatusJogo();
+        }
+      });
+
+      socket.on("jogador_saiu", (data) => {
+        console.log("Jogador saiu:", data.nome);
+        const index = jogadoresConectados.indexOf(data.nome);
+        if (index !== -1) {
+          jogadoresConectados.splice(index, 1);
+        }
+        atualizarListaJogadores();
+        atualizarStatusJogo();
+      });
+
+      function atualizarListaJogadores() {
+        const jogadoresDiv = document.getElementById("jogadores");
+        if (jogadoresConectados.length === 0) {
+          jogadoresDiv.textContent = "Aguardando jogadores...";
+          jogadoresDiv.className = "jogadores aguardando";
+        } else {
+          jogadoresDiv.textContent =
+            "Jogadores: " + jogadoresConectados.join(", ");
+          jogadoresDiv.className = "jogadores";
+        }
+      }
+
+      function atualizarStatusJogo() {
+        const statusDiv = document.getElementById("status");
+        const contagemDiv = document.getElementById("contagem");
+        const ultimoSorteadoDiv = document.getElementById("ultimo-sorteado");
+
+        switch (estadoJogo) {
+          case "aguardando":
+            statusDiv.textContent =
+              jogadoresConectados.length < 2
+                ? "Aguardando outro jogador..."
+                : "Preparando para iniciar...";
+            contagemDiv.style.display = "none";
+            ultimoSorteadoDiv.style.display = "none";
+            break;
+          case "contagem":
+            statusDiv.textContent = "Iniciando jogo em...";
+            contagemDiv.style.display = "block";
+            contagemDiv.classList.remove("urgente", "final");
+            ultimoSorteadoDiv.style.display = "none";
+            break;
+          case "em_andamento":
+            statusDiv.textContent = "Jogo em andamento!";
+            contagemDiv.style.display = "none";
+            ultimoSorteadoDiv.style.display = "block";
+            break;
+          case "finalizado":
+            statusDiv.textContent = "Fim do jogo!";
+            contagemDiv.style.display = "none";
+            ultimoSorteadoDiv.style.display = "none";
+            break;
+        }
+      }
+
+      socket.on("atualizar_contagem", (data) => {
+        console.log("Atualizando contagem:", data.segundos);
+        const contagemDiv = document.getElementById("contagem");
+        contagemDiv.textContent = data.segundos;
+        contagemDiv.style.display = "block";
+
+        // Remove classes anteriores
+        contagemDiv.classList.remove("urgente", "final");
+
+        // Adiciona classes de estilo baseadas no tempo restante
+        if (data.segundos <= 5) {
+          contagemDiv.classList.add("urgente");
+        } else if (data.segundos <= 10) {
+          contagemDiv.classList.add("final");
+        }
+      });
+
+      socket.on("iniciar_contagem", () => {
+        console.log("Iniciando contagem regressiva");
+        estadoJogo = "contagem";
+        const contagemDiv = document.getElementById("contagem");
+        contagemDiv.style.display = "block";
+        contagemDiv.classList.remove("urgente", "final");
+        atualizarStatusJogo();
+      });
+
+      socket.on("jogo_iniciado", () => {
+        console.log("Jogo iniciado");
+        estadoJogo = "em_andamento";
+        atualizarStatusJogo();
+        atualizarBotaoBingo();
+        atualizarListaNumerosSorteados();
+      });
+
+      socket.on("cartelas", (data) => {
+        const container = document.getElementById("cartelas-container");
+        container.innerHTML = "";
+        cartelasJogador = data.cartelas;
+
+        data.cartelas.forEach((cartela, cartelaIndex) => {
+          const cartelaWrapper = document.createElement("div");
+          cartelaWrapper.className = "cartela-wrapper";
+
+          const cartelaDiv = document.createElement("div");
+          cartelaDiv.className = "cartela";
+          cartelaDiv.dataset.cartelaIndex = cartelaIndex;
+
+          const header = document.createElement("div");
+          header.className = "cartela-header";
+          header.innerHTML =
+            "<div>B</div><div>I</div><div>N</div><div>G</div><div>O</div>";
+
+          const body = document.createElement("div");
+          body.className = "cartela-body";
+
+          for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+              const numero = cartela.numeros[i][j];
+              const marcado = cartela.marcacao[i][j];
+              const isCentro = i === 2 && j === 2;
+
+              const numeroDiv = document.createElement("div");
+              numeroDiv.className = `numero ${marcado ? "marcado" : ""} ${
+                isCentro ? "centro marcado" : ""
+              }`;
+              numeroDiv.textContent = numero === -1 ? "" : numero;
+              numeroDiv.dataset.row = i;
+              numeroDiv.dataset.col = j;
+
+              if (!isCentro) {
+                numeroDiv.onclick = () =>
+                  toggleMarcacao(numeroDiv, cartelaIndex, i, j, numero);
+              }
+
+              body.appendChild(numeroDiv);
             }
-            atualizarListaJogadores();
-            atualizarStatusJogo();
+          }
+
+          cartelaDiv.appendChild(header);
+          cartelaDiv.appendChild(body);
+
+          // Botão BINGO abaixo da cartela
+          const bingoBtn = document.createElement("button");
+          bingoBtn.id = `bingo-btn-${cartelaIndex}`;
+          bingoBtn.className = "bingo-button";
+          bingoBtn.textContent = "BINGO!";
+          bingoBtn.onclick = verificarBingo;
+          bingoBtn.style.display =
+            estadoJogo === "em_andamento" ? "block" : "none";
+
+          cartelaWrapper.appendChild(cartelaDiv);
+          cartelaWrapper.appendChild(bingoBtn);
+
+          container.appendChild(cartelaWrapper);
         });
-        
-        socket.on('jogador_saiu', (data) => {
-            console.log('Jogador saiu:', data.nome);
-            const index = jogadoresConectados.indexOf(data.nome);
-            if (index !== -1) {
-                jogadoresConectados.splice(index, 1);
-            }
-            atualizarListaJogadores();
-            atualizarStatusJogo();
+      });
+
+      function atualizarBotaoBingo() {
+        const cartelas = document.querySelectorAll(".cartela-wrapper");
+        cartelas.forEach((cartela, index) => {
+          const bingoBtn = document.getElementById(`bingo-btn-${index}`);
+          if (bingoBtn) {
+            bingoBtn.style.display =
+              estadoJogo === "em_andamento" ? "block" : "none";
+          }
         });
-        
-        function atualizarListaJogadores() {
-            const jogadoresDiv = document.getElementById('jogadores');
-            if (jogadoresConectados.length === 0) {
-                jogadoresDiv.textContent = 'Aguardando jogadores...';
-                jogadoresDiv.className = 'jogadores aguardando';
+      }
+
+      function toggleMarcacao(elemento, cartelaIndex, row, col, numero) {
+        if (estadoJogo !== "em_andamento") return;
+
+        const estaMarcado = elemento.classList.toggle("marcado");
+        cartelasJogador[cartelaIndex].marcacao[row][col] = estaMarcado;
+      }
+
+      socket.on("numero_sorteado", (data) => {
+        console.log("Número sorteado:", data.numero);
+        // Adiciona o número ao array em vez de ao Set para manter a ordem
+        if (!numerosSorteados.includes(data.numero)) {
+          numerosSorteados.push(data.numero);
+        }
+
+        const ultimoSorteado = document.getElementById("ultimo-sorteado");
+        ultimoSorteado.style.display = "block";
+        ultimoSorteado.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px; color: #1976D2;">Número sorteado</span>${data.numero}`;
+
+        // Reinicia a animação
+        ultimoSorteado.style.animation = "none";
+        ultimoSorteado.offsetHeight;
+        ultimoSorteado.style.animation =
+          "aparecer 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+
+        // Atualiza a lista de números sorteados
+        atualizarListaNumerosSorteados();
+      });
+
+      function atualizarListaNumerosSorteados() {
+        const listaNumeros = document.getElementById("lista-numeros");
+        listaNumeros.innerHTML = "";
+
+        // Calcula quantas linhas completas precisamos (11 números por linha)
+        const numeroLinhas = Math.ceil(numerosSorteados.length / 11);
+
+        // Preenche a grade de 11 colunas
+        for (let i = 0; i < numeroLinhas; i++) {
+          for (let j = 0; j < 11; j++) {
+            const index = i * 11 + j;
+            const numeroDiv = document.createElement("div");
+
+            // Usa o índice reverso para mostrar os números mais recentes primeiro
+            const reversedIndex = numerosSorteados.length - 1 - index;
+
+            if (reversedIndex >= 0) {
+              numeroDiv.className = "numero-sorteado";
+              numeroDiv.textContent = numerosSorteados[reversedIndex];
             } else {
-                jogadoresDiv.textContent = 'Jogadores: ' + jogadoresConectados.join(', ');
-                jogadoresDiv.className = 'jogadores';
+              numeroDiv.className = "numero-vazio";
             }
+
+            listaNumeros.appendChild(numeroDiv);
+          }
         }
+      }
 
-        function atualizarStatusJogo() {
-            const statusDiv = document.getElementById('status');
-            const contagemDiv = document.getElementById('contagem');
-            const ultimoSorteadoDiv = document.getElementById('ultimo-sorteado');
+      function gritarBingo() {
+        console.log("Gritando BINGO!");
+        socket.emit("bingo", { codigo: codigoPartida });
 
-            switch (estadoJogo) {
-                case 'aguardando':
-                    statusDiv.textContent = jogadoresConectados.length < 2 ? 
-                        'Aguardando outro jogador...' : 
-                        'Preparando para iniciar...';
-                    contagemDiv.style.display = 'none';
-                    ultimoSorteadoDiv.style.display = 'none';
-                    break;
-                case 'contagem':
-                    statusDiv.textContent = 'Iniciando jogo em...';
-                    contagemDiv.style.display = 'block';
-                    ultimoSorteadoDiv.style.display = 'none';
-                    break;
-                case 'em_andamento':
-                    statusDiv.textContent = 'Jogo em andamento!';
-                    contagemDiv.style.display = 'none';
-                    ultimoSorteadoDiv.style.display = 'block';
-                    break;
-                case 'finalizado':
-                    statusDiv.textContent = 'Fim do jogo!';
-                    contagemDiv.style.display = 'none';
-                    break;
+        // Desativa os botões de BINGO
+        const botoesBingo = document.querySelectorAll(".bingo-button");
+        botoesBingo.forEach((btn) => {
+          btn.style.display = "none";
+        });
+      }
+
+      socket.on("bingo", (data) => {
+        estadoJogo = "finalizado";
+        atualizarStatusJogo();
+
+        // Esconde todos os botões de BINGO
+        const botoesBingo = document.querySelectorAll(".bingo-button");
+        botoesBingo.forEach((btn) => {
+          btn.style.display = "none";
+        });
+
+        if (data.vencedor === nomeJogador) {
+          alert("PARABÉNS! Você fez BINGO!");
+        } else {
+          alert(`${data.vencedor} fez BINGO!`);
+        }
+      });
+
+      // Reconexão
+      socket.on("disconnect", () => {
+        console.log("Desconectado do servidor");
+      });
+
+      socket.on("connect_error", (error) => {
+        console.log("Erro de conexão:", error);
+      });
+
+      socket.on("atualizar_estado", (data) => {
+        console.log("Estado atualizado:", data);
+        estadoJogo = data.estado;
+        const status = document.getElementById("status");
+        const contagem = document.getElementById("contagem");
+
+        switch (data.estado) {
+          case "aguardando":
+            status.textContent = "Aguardando outro jogador...";
+            contagem.style.display = "none";
+            break;
+
+          case "contagem":
+            status.textContent = "O jogo começará em...";
+            contagem.style.display = "block";
+            contagem.textContent = data.contagem;
+
+            // Adiciona classes de estilo baseadas no tempo restante
+            if (data.contagem <= 5) {
+              contagem.classList.add("urgente");
+            } else if (data.contagem <= 10) {
+              contagem.classList.add("final");
             }
-        }
-        
-        socket.on('iniciar_contagem', () => {
-            console.log('Iniciando contagem regressiva');
-            estadoJogo = 'contagem';
-            atualizarStatusJogo();
-        });
-        
-        socket.on('atualizar_contagem', (data) => {
-            console.log('Atualizando contagem:', data.segundos);
-            const contagemDiv = document.getElementById('contagem');
-            contagemDiv.textContent = data.segundos;
-        });
-        
-        socket.on('jogo_iniciado', () => {
-            console.log('Jogo iniciado');
-            estadoJogo = 'em_andamento';
-            atualizarStatusJogo();
+            break;
+
+          case "em_andamento":
+            status.textContent = "Jogo em andamento!";
+            contagem.style.display = "none";
             atualizarBotaoBingo();
-            atualizarListaNumerosSorteados();
-        });
-        
-        socket.on('cartelas', (data) => {
-            const container = document.getElementById('cartelas-container');
-            container.innerHTML = '';
-            cartelasJogador = data.cartelas;
-            
-            data.cartelas.forEach((cartela, cartelaIndex) => {
-                const cartelaWrapper = document.createElement('div');
-                cartelaWrapper.className = 'cartela-wrapper';
-                
-                const cartelaDiv = document.createElement('div');
-                cartelaDiv.className = 'cartela';
-                cartelaDiv.dataset.cartelaIndex = cartelaIndex;
-                
-                const header = document.createElement('div');
-                header.className = 'cartela-header';
-                header.innerHTML = '<div>B</div><div>I</div><div>N</div><div>G</div><div>O</div>';
-                
-                const body = document.createElement('div');
-                body.className = 'cartela-body';
-                
-                for (let i = 0; i < 5; i++) {
-                    for (let j = 0; j < 5; j++) {
-                        const numero = cartela.numeros[i][j];
-                        const marcado = cartela.marcacao[i][j];
-                        const isCentro = i === 2 && j === 2;
-                        
-                        const numeroDiv = document.createElement('div');
-                        numeroDiv.className = `numero ${marcado ? 'marcado' : ''} ${isCentro ? 'centro marcado' : ''}`;
-                        numeroDiv.textContent = numero || '0';
-                        numeroDiv.dataset.row = i;
-                        numeroDiv.dataset.col = j;
-                        
-                        if (!isCentro) {
-                            numeroDiv.onclick = () => toggleMarcacao(numeroDiv, cartelaIndex, i, j, numero);
-                        }
-                        
-                        body.appendChild(numeroDiv);
-                    }
-                }
-                
-                cartelaDiv.appendChild(header);
-                cartelaDiv.appendChild(body);
-                
-                // Botão BINGO abaixo da cartela
-                const bingoBtn = document.createElement('button');
-                bingoBtn.id = `bingo-btn-${cartelaIndex}`;
-                bingoBtn.className = 'bingo-button';
-                bingoBtn.textContent = 'BINGO!';
-                bingoBtn.onclick = verificarBingo;
-                bingoBtn.style.display = estadoJogo === 'em_andamento' ? 'block' : 'none';
-                
-                cartelaWrapper.appendChild(cartelaDiv);
-                cartelaWrapper.appendChild(bingoBtn);
-                
-                container.appendChild(cartelaWrapper);
+            break;
+
+          case "finalizado":
+            status.textContent = "Jogo finalizado!";
+            contagem.style.display = "none";
+
+            const botoesBingo = document.querySelectorAll(".bingo-button");
+            botoesBingo.forEach((btn) => {
+              btn.style.display = "none";
             });
-        });
-        
-        function atualizarBotaoBingo() {
-            const cartelas = document.querySelectorAll('.cartela-wrapper');
-            cartelas.forEach((cartela, index) => {
-                const bingoBtn = document.getElementById(`bingo-btn-${index}`);
-                if (bingoBtn) {
-                    bingoBtn.style.display = estadoJogo === 'em_andamento' ? 'block' : 'none';
+            break;
+        }
+      });
+
+      socket.on("atualizar_jogadores", (data) => {
+        console.log("Jogadores atualizados:", data);
+        jogadoresConectados = data.jogadores;
+        atualizarListaJogadores();
+        atualizarStatusJogo();
+      });
+
+      socket.on("erro", (data) => {
+        console.error("Erro:", data);
+        alert(data.mensagem);
+      });
+
+      socket.on("mensagem", (data) => {
+        console.log("Mensagem:", data);
+        alert(data.texto);
+      });
+
+      function verificarBingo() {
+        const validationMessage = document.getElementById("validation-message");
+        let bingoValido = true;
+        let erros = {
+          numerosNaoSorteados: [],
+          numerosFaltando: [],
+        };
+        let numerosNecessarios = 0;
+        let numerosMarcados = 0;
+
+        // Verifica cada cartela do jogador
+        for (
+          let cartelaIndex = 0;
+          cartelaIndex < cartelasJogador.length;
+          cartelaIndex++
+        ) {
+          const cartela = cartelasJogador[cartelaIndex];
+
+          // Verifica cada posição da cartela
+          for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+              const numero = cartela.numeros[i][j];
+              const estaMarcado = cartela.marcacao[i][j];
+
+              // Pula a verificação do centro (posição [2][2])
+              if (i === 2 && j === 2) continue;
+
+              numerosNecessarios++;
+
+              if (estaMarcado) {
+                numerosMarcados++;
+                // Se o número está marcado, verifica se foi sorteado
+                if (!numerosSorteados.includes(numero)) {
+                  erros.numerosNaoSorteados.push(numero);
+                  bingoValido = false;
                 }
-            });
+              } else {
+                // Se o número não está marcado, verifica se deveria estar
+                if (numerosSorteados.includes(numero)) {
+                  erros.numerosFaltando.push(numero);
+                  bingoValido = false;
+                }
+              }
+            }
+          }
         }
 
-        function toggleMarcacao(elemento, cartelaIndex, row, col, numero) {
-            if (estadoJogo !== 'em_andamento') return;
-            
-            const estaMarcado = elemento.classList.toggle('marcado');
-            cartelasJogador[cartelaIndex].marcacao[row][col] = estaMarcado;
+        // Verifica se todos os números necessários foram marcados
+        if (numerosMarcados < numerosNecessarios) {
+          bingoValido = false;
+          if (erros.numerosFaltando.length === 0) {
+            erros.numerosFaltando = [
+              "Você precisa marcar todos os números da cartela",
+            ];
+          }
         }
-        
-        socket.on('numero_sorteado', (data) => {
-            console.log('Número sorteado:', data.numero);
-            // Adiciona o número ao array em vez de ao Set para manter a ordem
-            if (!numerosSorteados.includes(data.numero)) {
-                numerosSorteados.push(data.numero);
-            }
-            
-            const ultimoSorteado = document.getElementById('ultimo-sorteado');
-            ultimoSorteado.style.display = 'block';
-            ultimoSorteado.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px; color: #1976D2;">Número sorteado</span>${data.numero}`;
-            
-            // Reinicia a animação
-            ultimoSorteado.style.animation = 'none';
-            ultimoSorteado.offsetHeight;
-            ultimoSorteado.style.animation = 'aparecer 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            
-            // Atualiza a lista de números sorteados
-            atualizarListaNumerosSorteados();
-        });
-        
-        function atualizarListaNumerosSorteados() {
-            const listaNumeros = document.getElementById('lista-numeros');
-            listaNumeros.innerHTML = '';
-            
-            // Calcula quantas linhas completas precisamos (11 números por linha)
-            const numeroLinhas = Math.ceil(numerosSorteados.length / 11);
-            
-            // Preenche a grade de 11 colunas
-            for (let i = 0; i < numeroLinhas; i++) {
-                for (let j = 0; j < 11; j++) {
-                    const index = i * 11 + j;
-                    const numeroDiv = document.createElement('div');
-                    
-                    // Usa o índice reverso para mostrar os números mais recentes primeiro
-                    const reversedIndex = numerosSorteados.length - 1 - index;
-                    
-                    if (reversedIndex >= 0) {
-                        numeroDiv.className = 'numero-sorteado';
-                        numeroDiv.textContent = numerosSorteados[reversedIndex];
-                    } else {
-                        numeroDiv.className = 'numero-vazio';
-                    }
-                    
-                    listaNumeros.appendChild(numeroDiv);
-                }
-            }
-        }
-        
-        function gritarBingo() {
-            console.log('Gritando BINGO!');
-            socket.emit('bingo', { codigo: codigoPartida });
-            
-            // Desativa os botões de BINGO
-            const botoesBingo = document.querySelectorAll('.bingo-button');
-            botoesBingo.forEach(btn => {
-                btn.style.display = 'none';
-            });
-        }
-        
-        socket.on('bingo', (data) => {
-            estadoJogo = 'finalizado';
-            atualizarStatusJogo();
-            
-            // Esconde todos os botões de BINGO
-            const botoesBingo = document.querySelectorAll('.bingo-button');
-            botoesBingo.forEach(btn => {
-                btn.style.display = 'none';
-            });
-            
-            if (data.vencedor === nomeJogador) {
-                alert('PARABÉNS! Você fez BINGO!');
+
+        validationMessage.style.display = "block";
+
+        if (bingoValido) {
+          console.log("Bingo válido! Gritando BINGO!");
+          validationMessage.className = "validation-message success";
+          validationMessage.style.backgroundColor = "#4CAF50";
+          validationMessage.style.color = "white";
+          validationMessage.innerHTML = "BINGO VÁLIDO! Parabéns!";
+          gritarBingo();
+        } else {
+          let mensagemErro = "<strong>Bingo inválido!</strong><br>";
+          if (erros.numerosNaoSorteados.length > 0) {
+            mensagemErro += `<div class="validation-errors">Você marcou números que ainda não foram sorteados: ${erros.numerosNaoSorteados.join(
+              ", "
+            )}</div>`;
+          }
+          if (erros.numerosFaltando.length > 0) {
+            if (
+              typeof erros.numerosFaltando[0] === "string" &&
+              erros.numerosFaltando[0].includes("precisa marcar")
+            ) {
+              mensagemErro += `<div class="validation-errors">${erros.numerosFaltando[0]}</div>`;
             } else {
-                alert(`${data.vencedor} fez BINGO!`);
+              mensagemErro += `<div class="validation-errors">Faltou marcar os números: ${erros.numerosFaltando.join(
+                ", "
+              )}</div>`;
             }
-        });
+          }
 
-        // Reconexão
-        socket.on('disconnect', () => {
-            console.log('Desconectado do servidor');
-        });
+          validationMessage.className = "validation-message error";
+          validationMessage.style.backgroundColor = "#ff4444";
+          validationMessage.style.color = "white";
+          validationMessage.innerHTML = mensagemErro;
 
-        socket.on('connect_error', (error) => {
-            console.log('Erro de conexão:', error);
-        });
-
-        socket.on('atualizar_estado', (data) => {
-            console.log('Estado atualizado:', data);
-            estadoJogo = data.estado;
-            const status = document.getElementById('status');
-            const contagem = document.getElementById('contagem');
-            
-            switch (data.estado) {
-                case 'aguardando':
-                    status.textContent = 'Aguardando outro jogador...';
-                    contagem.style.display = 'none';
-                    break;
-                    
-                case 'contagem':
-                    status.textContent = 'O jogo começará em...';
-                    contagem.style.display = 'block';
-                    contagem.textContent = data.contagem;
-                    
-                    // Adiciona classes de estilo baseadas no tempo restante
-                    if (data.contagem <= 5) {
-                        contagem.classList.add('urgente');
-                    } else if (data.contagem <= 10) {
-                        contagem.classList.add('final');
-                    }
-                    break;
-                    
-                case 'em_andamento':
-                    status.textContent = 'Jogo em andamento!';
-                    contagem.style.display = 'none';
-                    atualizarBotaoBingo();
-                    break;
-                    
-                case 'finalizado':
-                    status.textContent = 'Jogo finalizado!';
-                    contagem.style.display = 'none';
-                    
-                    const botoesBingo = document.querySelectorAll('.bingo-button');
-                    botoesBingo.forEach(btn => {
-                        btn.style.display = 'none';
-                    });
-                    break;
-            }
-        });
-
-        socket.on('atualizar_jogadores', (data) => {
-            console.log('Jogadores atualizados:', data);
-            const jogadoresDiv = document.getElementById('jogadores');
-            jogadoresDiv.innerHTML = data.jogadores.map(jogador => 
-                `<div class="jogador">${jogador}</div>`
-            ).join('');
-        });
-
-        socket.on('erro', (data) => {
-            console.error('Erro:', data);
-            alert(data.mensagem);
-        });
-
-        socket.on('mensagem', (data) => {
-            console.log('Mensagem:', data);
-            alert(data.texto);
-        });
-
-        function verificarBingo() {
-            const validationMessage = document.getElementById('validation-message');
-            let bingoValido = true;
-            let erros = {
-                numerosNaoSorteados: [],
-                numerosFaltando: []
-            };
-            let numerosNecessarios = 0;
-            let numerosMarcados = 0;
-
-            // Verifica cada cartela do jogador
-            for (let cartelaIndex = 0; cartelaIndex < cartelasJogador.length; cartelaIndex++) {
-                const cartela = cartelasJogador[cartelaIndex];
-                
-                // Verifica cada posição da cartela
-                for (let i = 0; i < 5; i++) {
-                    for (let j = 0; j < 5; j++) {
-                        const numero = cartela.numeros[i][j];
-                        const estaMarcado = cartela.marcacao[i][j];
-                        
-                        // Pula a verificação do centro (posição [2][2])
-                        if (i === 2 && j === 2) continue;
-
-                        numerosNecessarios++;
-                        
-                        if (estaMarcado) {
-                            numerosMarcados++;
-                            // Se o número está marcado, verifica se foi sorteado
-                            if (!numerosSorteados.includes(numero)) {
-                                erros.numerosNaoSorteados.push(numero);
-                                bingoValido = false;
-                            }
-                        } else {
-                            // Se o número não está marcado, verifica se deveria estar
-                            if (numerosSorteados.includes(numero)) {
-                                erros.numerosFaltando.push(numero);
-                                bingoValido = false;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Verifica se todos os números necessários foram marcados
-            if (numerosMarcados < numerosNecessarios) {
-                bingoValido = false;
-                if (erros.numerosFaltando.length === 0) {
-                    erros.numerosFaltando = ['Você precisa marcar todos os números da cartela'];
-                }
-            }
-
-            validationMessage.style.display = 'block';
-            
-            if (bingoValido) {
-                console.log('Bingo válido! Gritando BINGO!');
-                validationMessage.className = 'validation-message success';
-                validationMessage.style.backgroundColor = '#4CAF50';
-                validationMessage.style.color = 'white';
-                validationMessage.innerHTML = 'BINGO VÁLIDO! Parabéns!';
-                gritarBingo();
-            } else {
-                let mensagemErro = '<strong>Bingo inválido!</strong><br>';
-                if (erros.numerosNaoSorteados.length > 0) {
-                    mensagemErro += `<div class="validation-errors">Você marcou números que ainda não foram sorteados: ${erros.numerosNaoSorteados.join(', ')}</div>`;
-                }
-                if (erros.numerosFaltando.length > 0) {
-                    if (typeof erros.numerosFaltando[0] === 'string' && erros.numerosFaltando[0].includes('precisa marcar')) {
-                        mensagemErro += `<div class="validation-errors">${erros.numerosFaltando[0]}</div>`;
-                    } else {
-                        mensagemErro += `<div class="validation-errors">Faltou marcar os números: ${erros.numerosFaltando.join(', ')}</div>`;
-                    }
-                }
-                
-                validationMessage.className = 'validation-message error';
-                validationMessage.style.backgroundColor = '#ff4444';
-                validationMessage.style.color = 'white';
-                validationMessage.innerHTML = mensagemErro;
-                
-                // Esconde a mensagem de erro após 5 segundos
-                setTimeout(() => {
-                    validationMessage.style.display = 'none';
-                }, 5000);
-            }
+          // Esconde a mensagem de erro após 5 segundos
+          setTimeout(() => {
+            validationMessage.style.display = "none";
+          }, 5000);
         }
+      }
 
-        function sairPartida() {
-            if (confirm('Tem certeza que deseja sair da partida?')) {
-                socket.emit('sair_sala', { codigo: codigoPartida });
-                window.location.href = '/';
-            }
+      function sairPartida() {
+        if (confirm("Tem certeza que deseja sair da partida?")) {
+          socket.emit("sair_sala", { codigo: codigoPartida });
+          window.location.href = "/";
         }
+      }
     </script>
-</body>
+  </body>
 </html>
