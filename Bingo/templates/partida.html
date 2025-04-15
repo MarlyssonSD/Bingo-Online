@@ -843,9 +843,7 @@
         } else {
           let mensagemErro = "<strong>Bingo inválido!</strong><br>";
           if (erros.numerosNaoSorteados.length > 0) {
-            mensagemErro += `<div class="validation-errors">Você marcou números que ainda não foram sorteados: ${erros.numerosNaoSorteados.join(
-              ", "
-            )}</div>`;
+            mensagemErro += `<div class="validation-errors">Você marcou números que ainda não foram sorteados</div>`;
           }
           if (erros.numerosFaltando.length > 0) {
             if (
