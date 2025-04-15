@@ -41,6 +41,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        position: relative;
       }
       .cartela {
         border: 2px solid #333;
@@ -235,13 +236,16 @@
         border: none;
         border-radius: 15px;
         cursor: pointer;
-        margin: 20px 0;
+        margin-bottom: 20px;
         animation: pulse 2s infinite;
         display: none;
         transition: all 0.3s ease;
         box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
         text-transform: uppercase;
         letter-spacing: 2px;
+        position: absolute;
+        top: -80px;
+        z-index: 1;
       }
 
       .bingo-button:hover {
@@ -535,7 +539,7 @@
           cartelaDiv.appendChild(header);
           cartelaDiv.appendChild(body);
 
-          // Botão BINGO abaixo da cartela
+          // Botão BINGO acima da cartela
           const bingoBtn = document.createElement("button");
           bingoBtn.id = `bingo-btn-${cartelaIndex}`;
           bingoBtn.className = "bingo-button";
@@ -544,8 +548,8 @@
           bingoBtn.style.display =
             estadoJogo === "em_andamento" ? "block" : "none";
 
-          cartelaWrapper.appendChild(cartelaDiv);
           cartelaWrapper.appendChild(bingoBtn);
+          cartelaWrapper.appendChild(cartelaDiv);
 
           container.appendChild(cartelaWrapper);
         });
