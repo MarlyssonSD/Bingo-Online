@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, session, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import string
-from cartela import GerenciadorCartelas
+from Bingo.cartela import GerenciadorCartelas
 import time
 
 app = Flask(__name__)
