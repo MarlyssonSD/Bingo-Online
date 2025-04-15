@@ -2,7 +2,7 @@
 
 ## Descrição
 
-Este é um projeto em **Python** que implementa uma versão **online** do jogo **Bingo**. Os jogadores poderão se conectar ao servidor e interagir em tempo real através de um chat enquanto jogam. O objetivo é completar a cartela de números para ganhar o prêmio da partida, que pode ser uma quantia de dinheiro 💰 ou um prêmio material 🎁.
+Este é um projeto em **Python** que implementa uma versão **online** do jogo **Bingo**. O objetivo é completar a cartela de números para ganhar o prêmio da partida, que pode ser uma quantia de dinheiro 💰 ou um prêmio material 🎁.
 
 ## Observações
 - O jogo será implementado utilizando **Sockets** em **Python** 🔌.
