@@ -1,0 +1,1 @@
+web: gunicorn --chdir bingo app:app
