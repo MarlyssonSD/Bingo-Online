@@ -13,9 +13,16 @@
         text-align: center;
         background-color: #f0f0f0;
       }
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 20px;
+      }
       h1 {
         color: #333;
-        margin-bottom: 20px;
+        margin: 0;
       }
       .container {
         display: flex;
@@ -68,10 +75,33 @@
       .partida-item button:hover {
         background-color: #1976d2;
       }
+      .voltar-button {
+        padding: 10px 20px;
+        font-size: 16px;
+        background-color: #f32121;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(131, 8, 8, 0.3);
+      }
+      .voltar-button:hover {
+        background-color: #861010;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+      }
+      .voltar-button:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);
+      }
     </style>
   </head>
   <body>
-    <h1>Bem-vindo, {{ nome_jogador }}!</h1>
+    <div class="header-container">
+      <h1>Bem-vindo, {{ nome_jogador }}!</h1>
+      <button class="voltar-button" onclick="window.location.href='/'">Voltar ao Início</button>
+    </div>
     <div class="container">
       <div class="section">
         <h2>Criar Nova Partida</h2>

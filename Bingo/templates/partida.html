@@ -41,6 +41,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        position: relative;
       }
       .cartela {
         border: 2px solid #333;
@@ -227,8 +228,8 @@
         font-style: italic;
       }
       .bingo-button {
-        padding: 20px 40px;
-        font-size: 32px;
+        padding: 15px 30px;
+        font-size: 24px;
         font-weight: bold;
         background-color: #ff4444;
         color: white;
@@ -242,6 +243,11 @@
         box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
         text-transform: uppercase;
         letter-spacing: 2px;
+        position: absolute;
+        top: -85px;
+        z-index: 1;
+        width: 50%;
+        max-width: 300px;
       }
 
       .bingo-button:hover {
@@ -285,6 +291,77 @@
         align-items: center;
         width: 100%;
         margin-bottom: 10px;
+      }
+
+      /* Media queries for mobile responsiveness */
+      @media screen and (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+        .main-game-area {
+          flex-direction: column;
+          align-items: center;
+        }
+        .numeros-sorteados {
+          min-width: 100%;
+          margin-top: 20px;
+        }
+        .lista-numeros-grid {
+          grid-template-columns: repeat(8, 1fr);
+        }
+        .contagem, .ultimo-sorteado {
+          font-size: 36px;
+          padding: 15px;
+        }
+        .bingo-button {
+          padding: 12px 24px;
+          font-size: 20px;
+          top: -70px;
+          width: 90%;
+          max-width: 250px;
+        }
+        .cartela {
+          transform: scale(0.9);
+        }
+      }
+
+      @media screen and (max-width: 480px) {
+        .lista-numeros-grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        .contagem, .ultimo-sorteado {
+          font-size: 28px;
+          padding: 10px;
+        }
+        .bingo-button {
+          padding: 10px 20px;
+          font-size: 18px;
+          top: -60px;
+          width: 95%;
+          max-width: 200px;
+          letter-spacing: 1px;
+        }
+        .cartela {
+          transform: scale(0.8);
+        }
+        .numero {
+          width: 30px;
+          height: 30px;
+          line-height: 30px;
+          font-size: 14px;
+          padding: 5px;
+        }
+      }
+
+      @media screen and (max-width: 320px) {
+        .bingo-button {
+          padding: 8px 16px;
+          font-size: 16px;
+          top: -50px;
+          width: 100%;
+          max-width: 180px;
+          letter-spacing: normal;
+        }
       }
     </style>
   </head>
@@ -482,7 +559,7 @@
           cartelaDiv.appendChild(header);
           cartelaDiv.appendChild(body);
 
-          // Botão BINGO abaixo da cartela
+          // Botão BINGO acima da cartela
           const bingoBtn = document.createElement("button");
           bingoBtn.id = `bingo-btn-${cartelaIndex}`;
           bingoBtn.className = "bingo-button";
@@ -491,8 +568,8 @@
           bingoBtn.style.display =
             estadoJogo === "em_andamento" ? "block" : "none";
 
-          cartelaWrapper.appendChild(cartelaDiv);
           cartelaWrapper.appendChild(bingoBtn);
+          cartelaWrapper.appendChild(cartelaDiv);
 
           container.appendChild(cartelaWrapper);
         });

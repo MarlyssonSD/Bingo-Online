@@ -15,13 +15,13 @@
         }
         h1 {
             color: #333;
-            font-size: 3em;
-            margin-bottom: 40px;
+            font-size: 2.5em;
+            margin-bottom: 30px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
         .form-container {
             background-color: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 10px;
             margin-top: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -41,11 +41,11 @@
         .sala-button {
             background-color: #4CAF50;
             color: white;
-            padding: 15px 30px;
+            padding: 12px 25px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: 1.1em;
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             width: 100%;
@@ -72,6 +72,38 @@
         }
         .form-sala-2 {
             display: none;
+        }
+
+        /* Media queries for mobile responsiveness */
+        @media screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 2em;
+                margin-bottom: 20px;
+            }
+            .form-container {
+                padding: 15px;
+                margin-top: 10px;
+            }
+            .sala-button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+            input[type="text"] {
+                padding: 10px;
+                font-size: 1em;
+            }
+        }
+
+        @media screen and (max-width: 400px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .form-container {
+                padding: 10px;
+            }
         }
     </style>
 </head>

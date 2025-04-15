@@ -4,7 +4,7 @@ import time
 import random
 
 class PartidaBingo:
-    def __init__(self, codigo_partida, min_clientes=2, max_clientes=10, tempo_espera=6, publica=True):
+    def __init__(self, codigo_partida, min_clientes=2, max_clientes=30, tempo_espera=6, publica=True):
         # Identificador da partida
         self.codigo_partida = codigo_partida
         

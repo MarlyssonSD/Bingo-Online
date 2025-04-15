@@ -27,7 +27,7 @@ partidas_sala_2 = {}  # Partidas da Sala Pública
 
 # Dicionário para armazenar os gerenciadores de cartelas dos jogadores
 gerenciadores_cartelas = {}
-
+tempo_da_contagem = 60  # Tempo de contagem em segundos
 
 def iniciar_jogo(codigo, tipo_sala="1"):
     """Função auxiliar para iniciar o jogo"""
@@ -90,7 +90,7 @@ def contagem_regressiva(codigo, tipo_sala="1"):
     print(f"Iniciando contagem regressiva na sala {codigo}")
     partidas_dict = partidas if tipo_sala == "1" else partidas_sala_2
 
-    for i in range(30, -1, -1):
+    for i in range(tempo_da_contagem, -1, -1):
         if codigo not in partidas_dict:
             print(f"Partida {codigo} não existe mais")
             return
@@ -355,8 +355,8 @@ def entrar_sala(data):
     # Atualiza o estado da sala
     if len(sala["jogadores"]) >= 2 and sala["estado"] == "aguardando":
         sala["estado"] = "contagem"
-        sala["contagem"] = 30
-        emit("atualizar_estado", {"estado": "contagem", "contagem": 30}, room=codigo)
+        sala["contagem"] = tempo_da_contagem
+        emit("atualizar_estado", {"estado": "contagem", "contagem": tempo_da_contagem}, room=codigo)
 
     # Envia as cartelas para o jogador
     emit("cartelas", {"cartelas": cartelas})
