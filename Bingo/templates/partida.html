@@ -405,6 +405,8 @@
       let cartelasJogador = [];
       let jogoIniciado = false;
       let bingoVerificado = false;
+      let bingoEmCooldown = false;
+      const bingoCooldownTime = 15000; // 15 segundos em milissegundos
 
       // Solicita as cartelas ao conectar
       socket.on("connect", () => {
@@ -740,6 +742,21 @@
       });
 
       function verificarBingo() {
+        if (bingoEmCooldown) {
+          const validationMessage = document.getElementById("validation-message");
+          validationMessage.style.display = "block";
+          validationMessage.className = "validation-message error";
+          validationMessage.style.backgroundColor = "#ff4444";
+          validationMessage.style.color = "white";
+          validationMessage.innerHTML = "<strong>Aguarde!</strong><br><div class='validation-errors'>Você precisa esperar 15 segundos.</div>";
+          
+          setTimeout(() => {
+            validationMessage.style.display = "none";
+          }, 3000);
+          
+          return;
+        }
+
         const validationMessage = document.getElementById("validation-message");
         let bingoValido = true;
         let erros = {
@@ -748,6 +765,24 @@
         };
         let numerosNecessarios = 0;
         let numerosMarcados = 0;
+
+        // Ativa o cooldown
+        bingoEmCooldown = true;
+        const bingoBtns = document.querySelectorAll(".bingo-button");
+        bingoBtns.forEach(btn => {
+          btn.style.opacity = "0.5";
+          btn.style.cursor = "not-allowed";
+        });
+
+        setTimeout(() => {
+          bingoEmCooldown = false;
+          bingoBtns.forEach(btn => {
+            if (btn.style.display !== "none") {
+              btn.style.opacity = "1";
+              btn.style.cursor = "pointer";
+            }
+          });
+        }, bingoCooldownTime);
 
         // Verifica cada cartela do jogador
         for (
@@ -819,9 +854,7 @@
             ) {
               mensagemErro += `<div class="validation-errors">${erros.numerosFaltando[0]}</div>`;
             } else {
-              mensagemErro += `<div class="validation-errors">Faltou marcar os números: ${erros.numerosFaltando.join(
-                ", "
-              )}</div>`;
+              mensagemErro += `<div class="validation-errors">Você precisa marcar todos os números da cartela</div>`;
             }
           }
 
